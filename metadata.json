@@ -1,0 +1,7 @@
+{
+  "name": "Mindful Meals - ADHD Meal Prep Assistant",
+  "description": "A meal planning app designed for ADHD brains that eliminates decision fatigue through smart automation, energy-based meal suggestions, and a digital pantry. It helps prevent meal skipping by providing flexible, low-effort options.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

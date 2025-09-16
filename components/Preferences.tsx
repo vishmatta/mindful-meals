@@ -9,9 +9,9 @@ interface PreferencesProps {
 }
 
 const Chip: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemove }) => (
-    <span className="inline-flex items-center py-1 pl-3 pr-2 rounded-full text-sm font-medium bg-teal-100 text-teal-800">
+    <span className="inline-flex items-center py-1 pl-3 pr-2 rounded-full text-sm font-medium bg-primary/20 text-primary">
         {label}
-        <button onClick={onRemove} className="ml-1 flex-shrink-0 h-4 w-4 rounded-full inline-flex items-center justify-center text-teal-500 hover:bg-teal-200 hover:text-teal-600 focus:outline-none focus:bg-teal-500 focus:text-white">
+        <button onClick={onRemove} className="ml-1 flex-shrink-0 h-4 w-4 rounded-full inline-flex items-center justify-center text-primary/80 hover:bg-primary/30 hover:text-primary focus:outline-none focus:bg-primary focus:text-white">
             <Icon name="x" className="h-3 w-3" />
         </button>
     </span>
@@ -33,7 +33,7 @@ const ListEditor: React.FC<{ title: string; items: string[]; setItems: (items: s
 
     return (
         <div>
-            <label className="block text-sm font-medium text-gray-700">{title}</label>
+            <label className="block text-sm font-medium text-text-primary">{title}</label>
             <div className="mt-1 flex rounded-md shadow-sm">
                 <input
                     type="text"
@@ -41,12 +41,12 @@ const ListEditor: React.FC<{ title: string; items: string[]; setItems: (items: s
                     onChange={(e) => setInputValue(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAdd(); } }}
                     placeholder={placeholder}
-                    className="flex-1 block w-full min-w-0 rounded-none rounded-l-md border-gray-300 focus:border-teal-500 focus:ring-teal-500 sm:text-sm"
+                    className="flex-1 block w-full min-w-0 rounded-none rounded-l-md border-neutral-medium/30 focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
                 />
                 <button
                     type="button"
                     onClick={handleAdd}
-                    className="-ml-px relative inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 text-sm font-medium rounded-r-md text-gray-700 bg-gray-50 hover:bg-gray-100 focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    className="-ml-px relative inline-flex items-center space-x-2 px-4 py-2 border border-neutral-medium/30 text-sm font-medium rounded-r-md text-text-secondary bg-background-secondary hover:bg-neutral-light/70 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                     Add
                 </button>
@@ -70,8 +70,8 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave })
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <h1 className="text-3xl font-bold text-gray-900">Settings & Preferences</h1>
-            <p className="mt-1 text-gray-600">Help the app understand your needs better.</p>
+            <h1 className="text-3xl font-bold text-text-primary font-heading">Settings & Preferences</h1>
+            <p className="mt-1 text-text-secondary">Help the app understand your needs better.</p>
 
             <div className="mt-8 max-w-2xl space-y-8">
                 <ListEditor 

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, DietaryPreferences, Ingredient, MealPlanItem, Recipe, PrepStep, ShoppingListItem, EnergyLevel } from './types';
 import { NAV_ITEMS, INITIAL_PANTRY, INITIAL_PREFERENCES, INITIAL_MEAL_PLAN } from './constants';
@@ -16,7 +15,7 @@ const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; ac
     <button
         onClick={onClick}
         className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors w-full text-left ${
-            active ? 'bg-teal-600 text-white' : 'text-gray-600 hover:bg-gray-100'
+            active ? 'bg-primary text-white' : 'text-text-secondary hover:bg-background-primary'
         }`}
     >
         <Icon name={item.icon} className="mr-3 h-6 w-6" />
@@ -88,14 +87,27 @@ export default function App() {
             pantryItems.filter(item => item.inStock).map(item => item.name.toLowerCase())
         );
 
-        const newShoppingList: ShoppingListItem[] = [];
+        const newGeneratedItems: ShoppingListItem[] = [];
         required.forEach((value, name) => {
             if (value.quantity > 0 && !inStockItems.has(name)) {
-                newShoppingList.push({ name: capitalize(name), quantity: Math.ceil(value.quantity), unit: value.unit });
+                newGeneratedItems.push({ 
+                    id: `gen-${new Date().getTime()}-${name}`,
+                    name: capitalize(name), 
+                    quantity: Math.ceil(value.quantity), 
+                    unit: value.unit,
+                    store: 'HEB',
+                    isGenerated: true,
+                    isChecked: false,
+                });
             }
         });
         
-        setShoppingList(newShoppingList);
+        setShoppingList(currentList => {
+            const userAddedItems = currentList.filter(item => !item.isGenerated);
+            const userAddedItemNames = new Set(userAddedItems.map(i => i.name.toLowerCase()));
+            const filteredNewGeneratedItems = newGeneratedItems.filter(i => !userAddedItemNames.has(i.name.toLowerCase()));
+            return [...userAddedItems, ...filteredNewGeneratedItems];
+        });
     }, [mealPlan, pantryItems]);
 
 
@@ -182,6 +194,28 @@ export default function App() {
         );
     };
 
+    const handleAddItemToShoppingList = (item: Omit<ShoppingListItem, 'id' | 'isGenerated' | 'isChecked'>) => {
+        const newItem: ShoppingListItem = {
+            ...item,
+            id: `user-${new Date().getTime()}`,
+            isGenerated: false,
+            isChecked: false,
+        };
+        setShoppingList(prev => [...prev, newItem]);
+    };
+
+    const handleDeleteItemFromShoppingList = (id: string) => {
+        setShoppingList(prev => prev.filter(item => item.id !== id));
+    };
+
+    const handleUpdateShoppingListItem = (id: string, updates: Partial<Omit<ShoppingListItem, 'id'>>) => {
+        setShoppingList(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+    }
+
+    const handleClearCheckedShoppingListItems = () => {
+        setShoppingList(prev => prev.filter(item => !item.isChecked));
+    }
+
     const renderView = () => {
         switch (currentView) {
             case View.Dashboard:
@@ -193,7 +227,13 @@ export default function App() {
             case View.Pantry:
                 return <Pantry pantryItems={pantryItems} onAddItem={handleAddItemToPantry} onDeleteItem={handleDeleteItemFromPantry} onToggleStock={handleTogglePantryItem} onUpdateItem={handleUpdatePantryItem} />;
             case View.ShoppingList:
-                return <ShoppingList items={shoppingList} onClear={() => {}} />;
+                return <ShoppingList
+                    items={shoppingList}
+                    onAddItem={handleAddItemToShoppingList}
+                    onUpdateItem={handleUpdateShoppingListItem}
+                    onDeleteItem={handleDeleteItemFromShoppingList}
+                    onClearChecked={handleClearCheckedShoppingListItems}
+                />;
             case View.Preferences:
                 return <Preferences preferences={preferences} onSave={setPreferences} />;
             case View.FridgeRescue:
@@ -204,10 +244,10 @@ export default function App() {
     };
 
     return (
-        <div className="flex h-screen bg-gray-100">
-            <aside className="w-64 bg-white p-4 border-r border-gray-200 flex-shrink-0">
+        <div className="flex h-screen bg-background-primary">
+            <aside className="w-64 bg-background-secondary p-4 border-r border-neutral-medium/20 flex-shrink-0">
                 <div className="flex items-center mb-8">
-                    <h1 className="text-xl font-bold text-teal-600">Mindful Meals</h1>
+                    <h1 className="text-xl font-bold text-primary font-heading">Mindful Meals</h1>
                 </div>
                 <nav className="space-y-2">
                     {NAV_ITEMS.map(item => (
@@ -217,7 +257,7 @@ export default function App() {
             </aside>
             <main className="flex-1 overflow-y-auto">
                 {error && (
-                    <div className="m-4 p-4 bg-red-100 text-red-800 rounded-lg flex justify-between items-center">
+                    <div className="m-4 p-4 bg-functional-danger/20 text-functional-danger rounded-lg flex justify-between items-center">
                         <span>Error: {error}</span>
                         <button onClick={() => setError(null)}><Icon name="x" className="w-5 h-5" /></button>
                     </div>

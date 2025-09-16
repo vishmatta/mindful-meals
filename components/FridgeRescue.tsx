@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { DietaryPreferences } from '../types';
 import { analyzeFridgeImage } from '../services/geminiService';
@@ -56,9 +55,9 @@ export const FridgeRescue: React.FC<FridgeRescueProps> = ({ preferences }) => {
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="max-w-3xl mx-auto">
                 <div className="text-center">
-                    <Icon name="rescue" className="mx-auto h-12 w-12 text-teal-500" />
-                    <h1 className="mt-4 text-3xl font-bold text-gray-900">Fridge Rescue</h1>
-                    <p className="mt-2 text-lg text-gray-600">Feeling overwhelmed? Snap a pic of your ingredients, and we'll find a simple meal for you.</p>
+                    <Icon name="rescue" className="mx-auto h-12 w-12 text-primary" />
+                    <h1 className="mt-4 text-3xl font-bold text-text-primary font-heading">Fridge Rescue</h1>
+                    <p className="mt-2 text-lg text-text-secondary">Feeling overwhelmed? Snap a pic of your ingredients, and we'll find a simple meal for you.</p>
                 </div>
 
                 <div className="mt-8">
@@ -71,17 +70,17 @@ export const FridgeRescue: React.FC<FridgeRescueProps> = ({ preferences }) => {
                 
                 {imagePreview && (
                     <div className="mt-8">
-                        <h3 className="text-lg font-medium text-gray-900">Your Photo:</h3>
+                        <h3 className="text-lg font-medium text-text-primary font-heading">Your Photo:</h3>
                         <img src={imagePreview} alt="Ingredients preview" className="mt-2 rounded-lg shadow-md w-full max-w-md mx-auto" />
                     </div>
                 )}
 
-                {error && <div className="mt-6 p-4 bg-red-100 text-red-800 rounded-md">{error}</div>}
+                {error && <div className="mt-6 p-4 bg-functional-danger/20 text-functional-danger rounded-md">{error}</div>}
                 
                 {result && (
-                    <div className="mt-8 p-6 bg-white rounded-lg shadow-sm">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-4">Here are some ideas:</h2>
-                        <div className="prose prose-teal max-w-none">
+                    <div className="mt-8 p-6 bg-background-secondary rounded-lg shadow-sm">
+                        <h2 className="text-xl font-semibold text-text-primary mb-4 font-heading">Here are some ideas:</h2>
+                        <div className="text-text-secondary max-w-none">
                             {result.split('\n').map((line, i) => <p key={i}>{line}</p>)}
                         </div>
                     </div>

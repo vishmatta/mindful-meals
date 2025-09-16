@@ -1,10 +1,10 @@
 import { DietaryPreferences, EnergyLevel, Ingredient, MealPlanItem, View } from './types';
 
 export const ENERGY_LEVELS = {
-  [EnergyLevel.FullPower]: { label: 'Full Power', color: 'bg-green-500', description: 'Ready for a complex recipe!' },
-  [EnergyLevel.Cruising]: { label: 'Cruising', color: 'bg-blue-500', description: 'Good for standard meal prep.' },
-  [EnergyLevel.LowBattery]: { label: 'Low Battery', color: 'bg-yellow-500', description: 'Need something quick and easy.' },
-  [EnergyLevel.SOS]: { label: 'SOS', color: 'bg-red-500', description: '5-minute emergency meals only.' },
+  [EnergyLevel.FullPower]: { label: 'Full Power', color: 'bg-energy-full-power', description: 'Ready for a complex recipe!' },
+  [EnergyLevel.Cruising]: { label: 'Cruising', color: 'bg-energy-cruising', description: 'Good for standard meal prep.' },
+  [EnergyLevel.LowBattery]: { label: 'Low Battery', color: 'bg-energy-low-battery', description: 'Need something quick and easy.' },
+  [EnergyLevel.SOS]: { label: 'SOS', color: 'bg-energy-sos', description: '5-minute emergency meals only.' },
 };
 
 export const PANTRY_CATEGORIES = [

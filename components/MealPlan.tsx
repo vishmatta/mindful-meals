@@ -18,8 +18,8 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
 
     if (!recipe) {
         return (
-            <div className="bg-white p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
-                <p className="text-gray-500">Rest Day / Eat Out</p>
+            <div className="bg-background-secondary p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
+                <p className="text-text-secondary">Rest Day / Eat Out</p>
             </div>
         );
     }
@@ -27,26 +27,26 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
     const energyConfig = ENERGY_LEVELS[recipe.energyLevel];
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow-sm h-full flex flex-col">
+        <div className="bg-background-secondary p-4 rounded-lg shadow-sm h-full flex flex-col">
             <div className="flex-grow">
                 <div className="flex justify-between items-start">
-                    <h4 className="font-bold pr-2">{recipe.name}</h4>
+                    <h4 className="font-bold pr-2 font-heading">{recipe.name}</h4>
                     <button
                         onClick={() => onToggleFavorite(recipe.id)}
-                        className="p-1 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                        className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex-shrink-0"
                         aria-label={recipe.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                        <Icon name="heart" className={`w-5 h-5 ${recipe.isFavorite ? 'text-red-500 fill-current' : ''}`} />
+                        <Icon name="heart" className={`w-5 h-5 ${recipe.isFavorite ? 'text-functional-danger fill-current' : ''}`} />
                     </button>
                 </div>
-                <p className="text-sm text-gray-500 mt-1">{recipe.description}</p>
+                <p className="text-sm text-text-secondary mt-1">{recipe.description}</p>
                 <div className="mt-2 flex items-center gap-4 text-xs">
                     <span title={`Energy: ${energyConfig.label}`} className={`px-2 py-1 rounded-full text-white ${energyConfig.color}`}>{energyConfig.label}</span>
-                    <span className="text-gray-600">Cleanup: {recipe.cleanupLevel}</span>
+                    <span className="text-text-secondary">Cleanup: {recipe.cleanupLevel}</span>
                 </div>
             </div>
             <div className="mt-4">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="text-sm font-semibold text-teal-600 hover:text-teal-800 flex items-center w-full justify-between">
+                <button onClick={() => setIsExpanded(!isExpanded)} className="text-sm font-semibold text-primary hover:text-primary/80 flex items-center w-full justify-between">
                     <span>Prep Steps ({prepTasks.length})</span>
                     <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                 </button>
@@ -60,9 +60,9 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
                                 id={`${item.date}-${task.id}`}
                                 checked={task.completed}
                                 onChange={() => onToggleTask(task.id)}
-                                className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                                className="h-4 w-4 rounded border-neutral-medium/50 text-primary focus:ring-primary"
                             />
-                            <label htmlFor={`${item.date}-${task.id}`} className={`ml-3 text-gray-700 ${task.completed ? 'line-through text-gray-400' : ''}`}>
+                            <label htmlFor={`${item.date}-${task.id}`} className={`ml-3 text-text-secondary ${task.completed ? 'line-through text-neutral-medium' : ''}`}>
                                 {task.task} ({task.durationMinutes} min)
                             </label>
                         </li>
@@ -89,8 +89,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Your Meal Plan</h1>
-                    <p className="mt-1 text-gray-600">A flexible plan for the week ahead.</p>
+                    <h1 className="text-3xl font-bold text-text-primary font-heading">Your Meal Plan</h1>
+                    <p className="mt-1 text-text-secondary">A flexible plan for the week ahead.</p>
                 </div>
                 <Button onClick={onGeneratePlan} isLoading={isLoading} className="mt-4 sm:mt-0">
                     {isLoading ? 'Generating...' : 'Generate New Week Plan'}
@@ -98,10 +98,10 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
             </div>
 
             {mealPlan.length === 0 && !isLoading && (
-                <div className="text-center py-20 bg-white rounded-lg shadow-sm">
-                    <Icon name="calendar" className="mx-auto w-12 h-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium text-gray-900">Your meal plan is empty</h3>
-                    <p className="mt-1 text-sm text-gray-500">Generate a new plan to get started!</p>
+                <div className="text-center py-20 bg-background-secondary rounded-lg shadow-sm">
+                    <Icon name="calendar" className="mx-auto w-12 h-12 text-neutral-medium/60" />
+                    <h3 className="mt-2 text-lg font-medium text-text-primary font-heading">Your meal plan is empty</h3>
+                    <p className="mt-1 text-sm text-text-secondary">Generate a new plan to get started!</p>
                 </div>
             )}
             
@@ -110,10 +110,11 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                     const mealItem = getMealForDate(day);
                     return (
                         <div key={day.toISOString()} className="flex flex-col space-y-2">
-                            <h3 className="font-semibold">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
+                            {/* Fix: Corrected typo from toLocaleDateDateString to toLocaleDateString. */}
+                            <h3 className="font-semibold font-heading">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
                             {mealItem ? <MealCard item={mealItem} onToggleTask={(taskId) => onToggleTask(mealItem.date, taskId)} onToggleFavorite={onToggleFavorite} /> : (
-                                <div className="bg-gray-100 p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
-                                    <p className="text-gray-400 text-sm">No meal planned</p>
+                                <div className="bg-neutral-light/50 p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
+                                    <p className="text-neutral-medium text-sm">No meal planned</p>
                                 </div>
                             )}
                         </div>

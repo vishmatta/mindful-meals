@@ -59,7 +59,11 @@ export interface MealPlanItem {
 }
 
 export interface ShoppingListItem {
+    id: string;
     name: string;
     quantity: number;
     unit: string;
+    store: string;
+    isGenerated: boolean;
+    isChecked: boolean;
 }

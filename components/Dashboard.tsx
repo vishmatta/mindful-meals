@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { EnergyLevel, MealPlanItem, Recipe, View } from '../types';
 import { ENERGY_LEVELS } from '../constants';
@@ -16,7 +15,7 @@ const EnergyButton: React.FC<{ level: EnergyLevel; selected: boolean; onClick: (
     return (
         <button
             onClick={onClick}
-            className={`flex-1 p-4 rounded-lg text-center transition-all duration-200 ${selected ? `${config.color} text-white scale-105 shadow-lg` : 'bg-white hover:shadow-md'}`}
+            className={`flex-1 p-4 rounded-lg text-center transition-all duration-200 ${selected ? `${config.color} text-white scale-105 shadow-lg` : 'bg-background-secondary hover:shadow-md'}`}
         >
             <p className="font-bold text-lg">{config.label}</p>
             <p className="text-sm">{config.description}</p>
@@ -57,12 +56,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-gray-900">Welcome!</h1>
-                <p className="mt-1 text-gray-600">Let's figure out what's for dinner. No stress.</p>
+                <h1 className="text-3xl font-bold text-text-primary font-heading">Welcome!</h1>
+                <p className="mt-1 text-text-secondary">Let's figure out what's for dinner. No stress.</p>
             </div>
 
-            <div className="bg-white p-6 rounded-lg shadow-sm">
-                <h2 className="font-semibold text-lg mb-4">First, how's your energy right now?</h2>
+            <div className="bg-background-secondary p-6 rounded-lg shadow-sm">
+                <h2 className="font-semibold text-lg mb-4 font-heading">First, how's your energy right now?</h2>
                 <div className="flex flex-col sm:flex-row gap-4">
                     {Object.values(EnergyLevel).map(level => (
                         <EnergyButton key={level} level={level} selected={energyLevel === level} onClick={() => setEnergyLevel(level)} />
@@ -71,33 +70,33 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-teal-50 border-l-4 border-teal-500 p-6 rounded-r-lg">
-                    <h2 className="font-bold text-xl text-teal-800 mb-3">What's Next?</h2>
+                <div className="bg-primary/10 border-l-4 border-primary p-6 rounded-r-lg">
+                    <h2 className="font-bold text-xl text-primary/90 mb-3 font-heading">What's Next?</h2>
                     {nextTask ? (
                         <>
-                            <p className="text-gray-700 text-lg">Your next small step is:</p>
-                            <p className="font-semibold text-2xl mt-2 text-teal-900">{nextTask.task}</p>
-                            <p className="text-gray-600">for {nextTask.meal}.</p>
+                            <p className="text-text-secondary text-lg">Your next small step is:</p>
+                            <p className="font-semibold text-2xl mt-2 text-primary">{nextTask.task}</p>
+                            <p className="text-text-secondary">for {nextTask.meal}.</p>
                         </>
                     ) : (
-                        <p className="text-gray-700">You're all caught up! Consider generating a new meal plan.</p>
+                        <p className="text-text-secondary">You're all caught up! Consider generating a new meal plan.</p>
                     )}
-                     <button onClick={() => setCurrentView(View.MealPlan)} className="mt-4 text-teal-600 font-semibold hover:underline">View Full Plan &rarr;</button>
+                     <button onClick={() => setCurrentView(View.MealPlan)} className="mt-4 text-primary font-semibold hover:underline">View Full Plan &rarr;</button>
                 </div>
 
-                <div className="bg-white p-6 rounded-lg shadow-sm">
-                    <h2 className="font-semibold text-lg mb-4">Based on your energy, try these:</h2>
+                <div className="bg-background-secondary p-6 rounded-lg shadow-sm">
+                    <h2 className="font-semibold text-lg mb-4 font-heading">Based on your energy, try these:</h2>
                     {mealsToShow.length > 0 ? (
                          <ul className="space-y-3">
                             {mealsToShow.map(recipe => (
-                                <li key={recipe.id} className="p-3 bg-gray-50 rounded-md flex justify-between items-center">
+                                <li key={recipe.id} className="p-3 bg-background-primary rounded-md flex justify-between items-center">
                                     <span>{recipe.name}</span>
-                                    <span className="text-xs font-medium text-gray-500">{recipe.totalTimeMinutes} min</span>
+                                    <span className="text-xs font-medium text-text-secondary">{recipe.totalTimeMinutes} min</span>
                                 </li>
                             ))}
                         </ul>
                     ) : (
-                        <p className="text-gray-500 italic">No meals match this energy level in your current plan. Time for a crisis meal or Fridge Rescue!</p>
+                        <p className="text-text-secondary italic">No meals match this energy level in your current plan. Time for a crisis meal or Fridge Rescue!</p>
                     )}
                 </div>
             </div>

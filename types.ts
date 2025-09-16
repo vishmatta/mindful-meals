@@ -5,6 +5,7 @@ export enum View {
   ShoppingList = 'SHOPPING_LIST',
   Preferences = 'PREFERENCES',
   FridgeRescue = 'FRIDGE_RESCUE',
+  Cookbook = 'COOKBOOK',
 }
 
 export enum EnergyLevel {
@@ -25,6 +26,7 @@ export interface DietaryPreferences {
   globalRestrictions: string[];
   weeklyCustomizations: string[];
   equipment: string[];
+  cuisinePreferences: string[];
 }
 
 export interface PrepStep {
@@ -45,6 +47,8 @@ export interface Recipe {
   totalTimeMinutes: number;
   energyLevel: EnergyLevel;
   cleanupLevel: 'low' | 'medium' | 'high';
+  isFavorite: boolean;
+  cuisine: string;
 }
 
 export interface MealPlanItem {

@@ -39,8 +39,10 @@ const recipeSchema = {
         energyLevel: { type: Type.STRING, description: 'The energy level required for the recipe. Must be one of the following values: "FULL_POWER", "CRUISING", "LOW_BATTERY", "SOS"' },
         // Fix: Replace unsupported 'enum' with 'description' to guide the model on valid values.
         cleanupLevel: { type: Type.STRING, description: 'The cleanup level after cooking. Must be one of the following values: "low", "medium", "high"' },
+        isFavorite: { type: Type.BOOLEAN, description: "Set to false by default." },
+        cuisine: { type: Type.STRING, description: "The cuisine type of the recipe, e.g., Indian, Mexican, Italian." },
     },
-    required: ["id", "name", "description", "ingredients", "prepSteps", "cookingTimeMinutes", "totalTimeMinutes", "energyLevel", "cleanupLevel"],
+    required: ["id", "name", "description", "ingredients", "prepSteps", "cookingTimeMinutes", "totalTimeMinutes", "energyLevel", "cleanupLevel", "isFavorite", "cuisine"],
 };
 
 
@@ -60,10 +62,13 @@ export const generateMealPlan = async (preferences: DietaryPreferences, pantry: 
             This Week's Preferences (Try to incorporate these):
             - ${preferences.weeklyCustomizations.join(', ') || 'None'}
             
+            Preferred Cuisines (focus on these styles of food):
+            - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
+
             Current Pantry Items (use these first before adding to a shopping list):
             ${availablePantryItems.map(i => `- ${i.name}`).join('\n') || 'Pantry is empty'}
 
-            Generate 7 dinner recipes based on these rules. Return the response as a JSON array.
+            Generate 7 dinner recipes based on these rules. For each recipe, also specify its primary cuisine type (e.g., 'Italian', 'Mexican'). Return the response as a JSON array.
         `;
         
         const response = await ai.models.generateContent({

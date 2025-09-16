@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { DietaryPreferences } from '../types';
 import { Button } from './common/Button';
@@ -63,9 +62,10 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave })
     const [global, setGlobal] = useState(preferences.globalRestrictions);
     const [weekly, setWeekly] = useState(preferences.weeklyCustomizations);
     const [equipment, setEquipment] = useState(preferences.equipment);
+    const [cuisines, setCuisines] = useState(preferences.cuisinePreferences);
 
     const handleSave = () => {
-        onSave({ globalRestrictions: global, weeklyCustomizations: weekly, equipment });
+        onSave({ globalRestrictions: global, weeklyCustomizations: weekly, equipment, cuisinePreferences: cuisines });
     };
 
     return (
@@ -85,6 +85,12 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave })
                     items={weekly}
                     setItems={setWeekly}
                     placeholder="e.g., Low carb, More chicken"
+                />
+                <ListEditor 
+                    title="Cuisine Preferences"
+                    items={cuisines}
+                    setItems={setCuisines}
+                    placeholder="e.g., Indian, Mexican, Thai"
                 />
                 <ListEditor 
                     title="Kitchen Equipment"

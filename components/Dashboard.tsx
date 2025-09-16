@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { EnergyLevel, MealPlanItem, Recipe, View } from '../types';
 import { ENERGY_LEVELS } from '../constants';
@@ -46,9 +45,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan }
         .slice(0, 3);
         
     const crisisMeals: Recipe[] = [
-        { id: 'c1', name: 'Scrambled Eggs on Toast', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 5, totalTimeMinutes: 7, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low' },
-        { id: 'c2', name: 'Yogurt with Granola', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 0, totalTimeMinutes: 2, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low' },
-        { id: 'c3', name: 'Instant Noodles', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 3, totalTimeMinutes: 5, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low' },
+        { id: 'c1', name: 'Scrambled Eggs on Toast', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 5, totalTimeMinutes: 7, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General' },
+        { id: 'c2', name: 'Yogurt with Granola', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 0, totalTimeMinutes: 2, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General' },
+        { id: 'c3', name: 'Instant Noodles', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 3, totalTimeMinutes: 5, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General' },
     ];
     
     const mealsToShow = energyLevel === EnergyLevel.SOS ? crisisMeals : recommendedMeals.map(m => m.recipe as Recipe);

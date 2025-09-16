@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { MealPlanItem, PrepStep } from '../types';
 import { Button } from './common/Button';
@@ -9,10 +8,11 @@ interface MealPlanProps {
     mealPlan: MealPlanItem[];
     onGeneratePlan: () => Promise<void>;
     onToggleTask: (mealDate: string, taskId: string) => void;
+    onToggleFavorite: (recipeId: string) => void;
     isLoading: boolean;
 }
 
-const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void }> = ({ item, onToggleTask }) => {
+const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
     const { recipe, prepTasks } = item;
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -29,7 +29,16 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
     return (
         <div className="bg-white p-4 rounded-lg shadow-sm h-full flex flex-col">
             <div className="flex-grow">
-                <h4 className="font-bold">{recipe.name}</h4>
+                <div className="flex justify-between items-start">
+                    <h4 className="font-bold pr-2">{recipe.name}</h4>
+                    <button
+                        onClick={() => onToggleFavorite(recipe.id)}
+                        className="p-1 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                        aria-label={recipe.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                        <Icon name="heart" className={`w-5 h-5 ${recipe.isFavorite ? 'text-red-500 fill-current' : ''}`} />
+                    </button>
+                </div>
                 <p className="text-sm text-gray-500 mt-1">{recipe.description}</p>
                 <div className="mt-2 flex items-center gap-4 text-xs">
                     <span title={`Energy: ${energyConfig.label}`} className={`px-2 py-1 rounded-full text-white ${energyConfig.color}`}>{energyConfig.label}</span>
@@ -64,7 +73,7 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
     );
 };
 
-export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, isLoading }) => {
+export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, onToggleFavorite, isLoading }) => {
     const days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() + i);
@@ -102,7 +111,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                     return (
                         <div key={day.toISOString()} className="flex flex-col space-y-2">
                             <h3 className="font-semibold">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
-                            {mealItem ? <MealCard item={mealItem} onToggleTask={(taskId) => onToggleTask(mealItem.date, taskId)} /> : (
+                            {mealItem ? <MealCard item={mealItem} onToggleTask={(taskId) => onToggleTask(mealItem.date, taskId)} onToggleFavorite={onToggleFavorite} /> : (
                                 <div className="bg-gray-100 p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
                                     <p className="text-gray-400 text-sm">No meal planned</p>
                                 </div>

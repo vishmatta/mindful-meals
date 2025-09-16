@@ -7,6 +7,7 @@ import { Pantry } from './components/Pantry';
 import { ShoppingList } from './components/ShoppingList';
 import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
+import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
 import { generateMealPlan } from './services/geminiService';
 
@@ -22,12 +23,18 @@ const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; ac
     </button>
 );
 
+const capitalize = (s: string) => {
+    if (typeof s !== 'string' || s.length === 0) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export default function App() {
     const [currentView, setCurrentView] = useState<View>(View.Dashboard);
     const [preferences, setPreferences] = useState<DietaryPreferences>(INITIAL_PREFERENCES);
     const [pantryItems, setPantryItems] = useState<Ingredient[]>(INITIAL_PANTRY);
     const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(INITIAL_MEAL_PLAN);
     const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
+    const [cookbook, setCookbook] = useState<Recipe[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +43,10 @@ export default function App() {
         setError(null);
         try {
             const recipes: Recipe[] = await generateMealPlan(preferences, pantryItems);
-            const newPlan: MealPlanItem[] = recipes.map((recipe, index) => {
+            const favoriteIds = new Set(cookbook.map(r => r.id));
+            const recipesWithFavorites = recipes.map(r => ({ ...r, isFavorite: favoriteIds.has(r.id) }));
+
+            const newPlan: MealPlanItem[] = recipesWithFavorites.map((recipe, index) => {
                 const date = new Date();
                 date.setDate(date.getDate() + index);
                 return {
@@ -64,6 +74,8 @@ export default function App() {
         mealPlan.forEach(item => {
             item.recipe?.ingredients.forEach(ing => {
                 const key = ing.name.toLowerCase();
+                if (key === 'water') return; // Do not add water to shopping list
+
                 const current = required.get(key) || { quantity: 0, unit: ing.unit };
                 current.quantity += ing.quantity;
                 required.set(key, current);
@@ -77,7 +89,7 @@ export default function App() {
         const newShoppingList: ShoppingListItem[] = [];
         required.forEach((value, name) => {
             if (value.quantity > 0 && !inStockItems.has(name)) {
-                newShoppingList.push({ name: name, quantity: Math.ceil(value.quantity), unit: value.unit });
+                newShoppingList.push({ name: capitalize(name), quantity: Math.ceil(value.quantity), unit: value.unit });
             }
         });
         
@@ -90,12 +102,20 @@ export default function App() {
     }, [calculateShoppingList]);
 
     const handleAddItemToPantry = (item: { name: string; category: string }) => {
-        const newItem = { ...item, id: new Date().getTime().toString(), inStock: true };
+        const newItem = { ...item, name: capitalize(item.name), id: new Date().getTime().toString(), inStock: true };
         setPantryItems(prev => [...prev, newItem].sort((a,b) => a.name.localeCompare(b.name)));
     };
 
     const handleDeleteItemFromPantry = (id: string) => {
         setPantryItems(prev => prev.filter(item => item.id !== id));
+    };
+    
+    const handleUpdatePantryItem = (id: string, updates: { name: string; category: string }) => {
+        setPantryItems(currentItems =>
+            currentItems.map(item =>
+                item.id === id ? { ...item, name: capitalize(updates.name), category: updates.category } : item
+            ).sort((a, b) => a.name.localeCompare(b.name))
+        );
     };
 
     const handleTogglePantryItem = (id: string) => {
@@ -122,14 +142,54 @@ export default function App() {
         );
     };
 
+    const handleToggleFavorite = (recipeId: string) => {
+        let sourceRecipe: Recipe | undefined;
+        for (const item of mealPlan) {
+            if (item.recipe?.id === recipeId) {
+                sourceRecipe = item.recipe;
+                break;
+            }
+        }
+        if (!sourceRecipe) {
+            sourceRecipe = cookbook.find(r => r.id === recipeId);
+        }
+
+        if (!sourceRecipe) return;
+        
+        const isNowFavorite = !sourceRecipe.isFavorite;
+        const updatedRecipe = { ...sourceRecipe, isFavorite: isNowFavorite };
+
+        if (isNowFavorite) {
+            setCookbook(prev => {
+                if (prev.find(r => r.id === recipeId)) {
+                    return prev.map(r => r.id === recipeId ? updatedRecipe : r);
+                }
+                return [...prev, updatedRecipe];
+            });
+        } else {
+            setCookbook(prev => prev.filter(r => r.id !== recipeId));
+        }
+
+        setMealPlan(prevPlan => 
+            prevPlan.map(item => {
+                if (item.recipe?.id === recipeId) {
+                    return { ...item, recipe: { ...item.recipe, isFavorite: isNowFavorite } };
+                }
+                return item;
+            })
+        );
+    };
+
     const renderView = () => {
         switch (currentView) {
             case View.Dashboard:
                 return <Dashboard setCurrentView={setCurrentView} mealPlan={mealPlan} />;
             case View.MealPlan:
-                return <MealPlan mealPlan={mealPlan} onGeneratePlan={handleGeneratePlan} onToggleTask={handleToggleTask} isLoading={isLoading} />;
+                return <MealPlan mealPlan={mealPlan} onGeneratePlan={handleGeneratePlan} onToggleTask={handleToggleTask} onToggleFavorite={handleToggleFavorite} isLoading={isLoading} />;
+            case View.Cookbook:
+                return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;
             case View.Pantry:
-                return <Pantry pantryItems={pantryItems} onAddItem={handleAddItemToPantry} onDeleteItem={handleDeleteItemFromPantry} onToggleStock={handleTogglePantryItem} />;
+                return <Pantry pantryItems={pantryItems} onAddItem={handleAddItemToPantry} onDeleteItem={handleDeleteItemFromPantry} onToggleStock={handleTogglePantryItem} onUpdateItem={handleUpdatePantryItem} />;
             case View.ShoppingList:
                 return <ShoppingList items={shoppingList} onClear={() => {}} />;
             case View.Preferences:

@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Ingredient } from '../types';
 import { Button } from './common/Button';
@@ -10,6 +9,7 @@ interface PantryProps {
     onAddItem: (item: { name: string, category: string }) => void;
     onDeleteItem: (id: string) => void;
     onToggleStock: (id: string) => void;
+    onUpdateItem: (id: string, updates: { name: string; category: string }) => void;
 }
 
 const NewItemForm: React.FC<{ onAddItem: (item: { name: string, category: string }) => void; closeForm: () => void }> = ({ onAddItem, closeForm }) => {
@@ -53,7 +53,56 @@ const NewItemForm: React.FC<{ onAddItem: (item: { name: string, category: string
     );
 };
 
-const PantryCategory: React.FC<{ category: string; items: Ingredient[]; onToggleStock: (id: string) => void; onDeleteItem: (id: string) => void; }> = ({ category, items, onToggleStock, onDeleteItem }) => {
+const EditItemForm: React.FC<{
+    item: Ingredient;
+    onSave: (updates: { name: string; category: string }) => void;
+    onCancel: () => void;
+}> = ({ item, onSave, onCancel }) => {
+    const [name, setName] = useState(item.name);
+    const [category, setCategory] = useState(item.category);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (name.trim()) {
+            onSave({ name, category });
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="w-full space-y-3">
+            <div className="flex flex-col sm:flex-row gap-4">
+                <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ingredient Name"
+                    className="flex-grow block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm bg-white text-gray-900 placeholder-gray-500"
+                />
+                <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm bg-white text-gray-900"
+                >
+                    {PANTRY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                </select>
+            </div>
+            <div className="flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={onCancel}>Cancel</Button>
+                <Button type="submit">Save</Button>
+            </div>
+        </form>
+    );
+};
+
+const PantryCategory: React.FC<{
+    category: string;
+    items: Ingredient[];
+    onToggleStock: (id: string) => void;
+    onDeleteItem: (id: string) => void;
+    onUpdateItem: (id: string, updates: { name: string; category: string }) => void;
+    editingItemId: string | null;
+    setEditingItemId: (id: string | null) => void;
+}> = ({ category, items, onToggleStock, onDeleteItem, onUpdateItem, editingItemId, setEditingItemId }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     return (
@@ -66,21 +115,39 @@ const PantryCategory: React.FC<{ category: string; items: Ingredient[]; onToggle
                 <ul role="list" className="divide-y divide-gray-200">
                     {items.length > 0 ? items.map((item) => (
                         <li key={item.id} className="px-4 py-3 flex items-center justify-between">
-                            <div className="flex items-center">
-                                <input
-                                    type="checkbox"
-                                    id={`pantry-${item.id}`}
-                                    checked={item.inStock}
-                                    onChange={() => onToggleStock(item.id)}
-                                    className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                             {editingItemId === item.id ? (
+                                <EditItemForm
+                                    item={item}
+                                    onSave={(updates) => {
+                                        onUpdateItem(item.id, updates);
+                                        setEditingItemId(null);
+                                    }}
+                                    onCancel={() => setEditingItemId(null)}
                                 />
-                                <label htmlFor={`pantry-${item.id}`} className={`ml-3 text-sm font-medium ${item.inStock ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
-                                    {item.name}
-                                </label>
-                            </div>
-                            <Button variant="secondary" className="p-2" onClick={() => onDeleteItem(item.id)}>
-                                <Icon name="trash" className="w-4 h-4 text-gray-500" />
-                            </Button>
+                            ) : (
+                                <>
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id={`pantry-${item.id}`}
+                                            checked={item.inStock}
+                                            onChange={() => onToggleStock(item.id)}
+                                            className="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 cursor-pointer"
+                                        />
+                                        <label htmlFor={`pantry-${item.id}`} className={`ml-3 text-sm font-medium ${item.inStock ? 'text-gray-900' : 'text-gray-400 line-through'}`}>
+                                            {item.name}
+                                        </label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="secondary" className="p-2" onClick={() => setEditingItemId(item.id)}>
+                                            <Icon name="edit" className="w-4 h-4 text-gray-500" />
+                                        </Button>
+                                        <Button variant="secondary" className="p-2" onClick={() => onDeleteItem(item.id)}>
+                                            <Icon name="trash" className="w-4 h-4 text-gray-500" />
+                                        </Button>
+                                    </div>
+                                </>
+                            )}
                         </li>
                     )) : (
                         <li className="px-4 py-4 text-center text-sm text-gray-500 italic">
@@ -94,8 +161,9 @@ const PantryCategory: React.FC<{ category: string; items: Ingredient[]; onToggle
 };
 
 
-export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDeleteItem, onToggleStock }) => {
+export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDeleteItem, onToggleStock, onUpdateItem }) => {
     const [showForm, setShowForm] = useState(false);
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
     const groupedItems = useMemo(() => {
         return pantryItems.reduce((acc, item) => {
@@ -112,7 +180,7 @@ export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDelete
                     <h1 className="text-3xl font-bold text-gray-900">Digital Pantry</h1>
                     <p className="mt-1 text-gray-600">Check off what you have at home.</p>
                 </div>
-                <Button onClick={() => setShowForm(true)} className="mt-4 sm:mt-0">
+                <Button onClick={() => { setShowForm(true); setEditingItemId(null); }} className="mt-4 sm:mt-0">
                     <Icon name="plus" className="-ml-1 mr-2 h-5 w-5" />
                     Add Item
                 </Button>
@@ -132,6 +200,9 @@ export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDelete
                                 items={items}
                                 onToggleStock={onToggleStock}
                                 onDeleteItem={onDeleteItem}
+                                onUpdateItem={onUpdateItem}
+                                editingItemId={editingItemId}
+                                setEditingItemId={setEditingItemId}
                             />
                         );
                     })}

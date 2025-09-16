@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { EnergyLevel, MealPlanItem, Recipe, View } from '../types';
 import { ENERGY_LEVELS } from '../constants';
 import { Icon } from './common/Icon';
@@ -6,6 +7,8 @@ import { Icon } from './common/Icon';
 interface DashboardProps {
     setCurrentView: (view: View) => void;
     mealPlan: MealPlanItem[];
+    energyLevel: EnergyLevel;
+    setEnergyLevel: (level: EnergyLevel) => void;
 }
 
 const EnergyButton: React.FC<{ level: EnergyLevel; selected: boolean; onClick: () => void }> = ({ level, selected, onClick }) => {
@@ -35,8 +38,7 @@ const getNextTask = (mealPlan: MealPlanItem[]) => {
     return null;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan }) => {
-    const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
+export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, energyLevel, setEnergyLevel }) => {
     
     const nextTask = getNextTask(mealPlan);
 

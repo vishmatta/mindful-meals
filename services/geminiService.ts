@@ -1,5 +1,6 @@
+
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-import { DietaryPreferences, Ingredient, Recipe } from '../types';
+import { DietaryPreferences, Ingredient, Recipe, EnergyLevel } from '../types';
 
 // Fix: Initialize GoogleGenAI with API_KEY from environment variables directly as per guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -46,13 +47,20 @@ const recipeSchema = {
 };
 
 
-export const generateMealPlan = async (preferences: DietaryPreferences, pantry: Ingredient[]): Promise<Recipe[]> => {
+export const generateMealPlan = async (preferences: DietaryPreferences, pantry: Ingredient[], energyLevel: EnergyLevel): Promise<Recipe[]> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
         const prompt = `
             Create a 7-day dinner meal plan for a user with ADHD. The goal is to minimize decision fatigue and overwhelm.
+
+            IMPORTANT: The user's current energy level is '${energyLevel}'. Please create a plan that reflects this.
+            - For 'FULL_POWER', suggest more engaging or complex recipes that might take longer. At least 4 meals should be FULL_POWER.
+            - For 'CRUISING', provide a standard mix of recipes with varying effort levels.
+            - For 'LOW_BATTERY', prioritize quick and simple meals. At least 4 meals should be LOW_BATTERY or SOS.
+            - For 'SOS', the plan should consist almost exclusively of meals that take less than 15 minutes and require minimal cleanup. At least 5 meals must be SOS.
+            
+            General rules:
             - Prioritize variety but keep ingredients simple and reusable across the week.
-            - Ensure a mix of energy levels required for cooking. Include at least two 'LOW_BATTERY' or 'SOS' meals.
             - Break down all preparation into small, manageable 'prepSteps'.
             - The user has the following equipment: ${preferences.equipment.join(', ')}.
 

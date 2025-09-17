@@ -9,7 +9,7 @@ import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
-import { generateMealPlan, generateRecipes } from './services/geminiService';
+import { generateMealPlan, generateRecipes, generateTargetedRecipes } from './services/geminiService';
 
 const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; active: boolean; onClick: () => void; }> = ({ item, active, onClick }) => (
     <button
@@ -92,38 +92,89 @@ export default function App() {
         }
     };
 
-    const handleFillMealType = async (mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', weekStart: Date) => {
+    const handleGenerateTargetedMeals = async (
+        day: Date,
+        mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+        scope: 'This Meal Only' | 'All Meal Types' | 'Rest of Today',
+        cookingMethod: string,
+        timeAvailable: string,
+        weekStart: Date,
+    ) => {
         setIsLoading(true);
         setError(null);
         try {
-            const recipes = await generateRecipes(preferences, pantryItems, energyLevel, mealType, 7);
-            
-            const newItemsMap = new Map<string, MealPlanItem>();
-            recipes.forEach((recipe, index) => {
-                const date = new Date(weekStart);
-                date.setDate(date.getDate() + index);
-                const newItem = createMealPlanItem(recipe, date, mealType);
-                newItemsMap.set(newItem.date, newItem);
-            });
-    
-            const weekEnd = new Date(weekStart);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-            const weekStartString = weekStart.toISOString().split('T')[0];
-            const weekEndString = weekEnd.toISOString().split('T')[0];
-    
-            const otherItems = mealPlan.filter(item => {
-                const isSameMealType = item.mealType === mealType;
-                const isInWeek = item.date >= weekStartString && item.date <= weekEndString;
-                return !(isSameMealType && isInWeek);
-            });
-    
-            setMealPlan([...otherItems, ...Array.from(newItemsMap.values())].sort((a, b) => a.date.localeCompare(b.date)));
-    
+            if (scope === 'This Meal Only') {
+                const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, 1, cookingMethod, timeAvailable);
+                if (recipes.length > 0) {
+                    const newItem = createMealPlanItem(recipes[0], day, mealType);
+                    setMealPlan(current => {
+                        const others = current.filter(item => !(item.date === newItem.date && item.mealType === newItem.mealType));
+                        return [...others, newItem].sort((a, b) => a.date.localeCompare(b.date));
+                    });
+                }
+            } else if (scope === 'All Meal Types') {
+                const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, 7, cookingMethod, timeAvailable);
+                
+                const newItemsMap = new Map<string, MealPlanItem>();
+                recipes.forEach((recipe, index) => {
+                    const date = new Date(weekStart);
+                    date.setDate(date.getDate() + index);
+                    const newItem = createMealPlanItem(recipe, date, mealType);
+                    newItemsMap.set(newItem.date, newItem);
+                });
+        
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const weekStartString = weekStart.toISOString().split('T')[0];
+                const weekEndString = weekEnd.toISOString().split('T')[0];
+        
+                const otherItems = mealPlan.filter(item => {
+                    const isSameMealType = item.mealType === mealType;
+                    const isInWeek = item.date >= weekStartString && item.date <= weekEndString;
+                    return !(isSameMealType && isInWeek);
+                });
+        
+                setMealPlan([...otherItems, ...Array.from(newItemsMap.values())].sort((a, b) => a.date.localeCompare(b.date)));
+            } else if (scope === 'Rest of Today') {
+                const todayString = day.toISOString().split('T')[0];
+                const mealsForToday = mealPlan.filter(item => item.date === todayString);
+                const mealTypesForToday = new Set(mealsForToday.map(item => item.mealType));
+
+                const allMealTypes: ('Breakfast' | 'Lunch' | 'Dinner' | 'Snack')[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+                const mealTypeIndex = allMealTypes.indexOf(mealType);
+                
+                const mealTypesToFill = allMealTypes.slice(mealTypeIndex).filter(mt => !mealTypesForToday.has(mt));
+
+                if (mealTypesToFill.length > 0) {
+                    const promises = mealTypesToFill.map(mt => 
+                        generateTargetedRecipes(preferences, pantryItems, energyLevel, mt, 1, cookingMethod, timeAvailable)
+                    );
+                    const results = await Promise.all(promises);
+
+                    const newItems = results.flatMap((recipeArray, index) => {
+                         if (!recipeArray || recipeArray.length === 0) return [];
+                         return createMealPlanItem(recipeArray[0], day, mealTypesToFill[index]);
+                    });
+
+                    const otherItems = mealPlan.filter(item => {
+                        const isToday = item.date === todayString;
+                        const isMealToFill = mealTypesToFill.includes(item.mealType as any);
+                        return !(isToday && isMealToFill);
+                    });
+                    
+                    setMealPlan([...otherItems, ...newItems].sort((a,b)=> a.date.localeCompare(b.date)));
+                }
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    const handleFillMealType = async (mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', weekStart: Date) => {
+        // A `day` parameter is required, but it's not used for the 'All Meal Types' scope, so we can pass any valid date.
+        await handleGenerateTargetedMeals(weekStart, mealType, 'All Meal Types', 'Any Method', 'No Limit', weekStart);
     };
     
     const handleGenerateToday = async () => {
@@ -322,6 +373,7 @@ export default function App() {
                     isLoading={isLoading}
                     onGenerateToday={handleGenerateToday}
                     onFillMealType={handleFillMealType}
+                    onGenerateTargetedMeals={handleGenerateTargetedMeals}
                 />;
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;

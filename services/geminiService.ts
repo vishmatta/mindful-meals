@@ -159,6 +159,79 @@ export const generateRecipes = async (
     }
 };
 
+export const generateTargetedRecipes = async (
+    preferences: DietaryPreferences,
+    pantry: Ingredient[],
+    energyLevel: EnergyLevel,
+    mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+    count: number,
+    cookingMethod: string,
+    timeAvailable: string,
+): Promise<Recipe[]> => {
+    try {
+        const availablePantryItems = pantry.filter(i => i.inStock);
+        
+        let constraints = '';
+        if (cookingMethod !== 'Any Method') {
+            constraints += `\n- Must use the following cooking method: '${cookingMethod}'.`;
+        }
+        if (timeAvailable !== 'No Limit') {
+            const timeInMinutes = { '15 minutes': 15, '30 minutes': 30, '1 hour': 60 }[timeAvailable] || 9999;
+            constraints += `\n- The total cooking time must not exceed ${timeInMinutes} minutes.`;
+        }
+
+        const prompt = `
+            Create ${count} unique ${mealType} recipe(s) for a user with ADHD.
+            The goal is to minimize decision fatigue and overwhelm.
+
+            IMPORTANT: The user's current energy level is '${energyLevel}'. Please create recipes that reflect this.
+            - For 'FULL_POWER', suggest more engaging or complex recipes.
+            - For 'CRUISING', provide standard recipes.
+            - For 'LOW_BATTERY', prioritize quick and simple meals.
+            - For 'SOS', the recipes must take less than 15 minutes and require minimal cleanup.
+            
+            **Recipe Constraints:** ${constraints || 'None'}
+
+            General rules:
+            - Prioritize variety but keep ingredients simple.
+            - Break down all preparation into small, manageable 'prepSteps'.
+            - The user has the following equipment: ${preferences.equipment.join(', ')}.
+
+            Global Dietary Restrictions (NEVER include these):
+            - ${preferences.globalRestrictions.join(', ') || 'None'}
+
+            This Week's Preferences (Try to incorporate these):
+            - ${preferences.weeklyCustomizations.join(', ') || 'None'}
+            
+            Preferred Cuisines (focus on these styles of food):
+            - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
+
+            Current Pantry Items (use these first):
+            ${availablePantryItems.map(i => `- ${i.name}`).join('\n') || 'Pantry is empty'}
+
+            Generate ${count} ${mealType} recipes based on these rules. Return the response as a JSON array of recipes.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: recipeSchema
+                },
+            },
+        });
+        
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+    } catch (error) {
+        console.error(`Error generating targeted ${mealType} recipes:`, error);
+        throw new Error(`Failed to generate targeted ${mealType} recipes. The AI might be busy, please try again later.`);
+    }
+};
+
 
 export const generateSingleMeal = async (
     preferences: DietaryPreferences,

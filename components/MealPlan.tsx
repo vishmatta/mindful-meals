@@ -3,6 +3,8 @@ import { MealPlanItem } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 import { ENERGY_LEVELS } from '../constants';
+import { Modal } from './common/Modal';
+import { SelectionOptionGroup } from './common/SelectionOptionGroup';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
@@ -14,6 +16,14 @@ interface MealPlanProps {
     isLoading: boolean;
     onGenerateToday: () => Promise<void>;
     onFillMealType: (mealType: MealType, weekStart: Date) => Promise<void>;
+    onGenerateTargetedMeals: (
+        day: Date,
+        mealType: MealType,
+        scope: 'This Meal Only' | 'All Meal Types' | 'Rest of Today',
+        cookingMethod: string,
+        timeAvailable: string,
+        weekStart: Date
+    ) => Promise<void>;
 }
 
 const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
@@ -133,8 +143,18 @@ const AddMealButton: React.FC<{ onClick?: () => void }> = ({ onClick }) => (
 );
 
 
-export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType }) => {
+export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals }) => {
     const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
+
+    // Modal state
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+    const [selectedMealType, setSelectedMealType] = useState<MealType | null>(null);
+
+    // Modal selection state
+    const [scope, setScope] = useState<'This Meal Only' | 'All Meal Types' | 'Rest of Today'>('This Meal Only');
+    const [cookingMethod, setCookingMethod] = useState('Any Method');
+    const [timeAvailable, setTimeAvailable] = useState('No Limit');
     
     const handlePreviousWeek = () => {
         const newDate = new Date(currentWeekStart);
@@ -147,12 +167,49 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
         newDate.setDate(newDate.getDate() + 7);
         setCurrentWeekStart(newDate);
     };
+
+    const handleAddMealClick = (day: Date, mealType: MealType) => {
+        setSelectedDay(day);
+        setSelectedMealType(mealType);
+        // Reset selections to default
+        setScope('This Meal Only');
+        setCookingMethod('Any Method');
+        setTimeAvailable('No Limit');
+        setIsModalOpen(true);
+    };
+
+    const handleGenerate = async () => {
+        if (selectedDay && selectedMealType) {
+            await onGenerateTargetedMeals(selectedDay, selectedMealType, scope, cookingMethod, timeAvailable, currentWeekStart);
+            setIsModalOpen(false);
+        }
+    };
     
     const days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(currentWeekStart);
         d.setDate(d.getDate() + i);
         return d;
     });
+
+    const cookingMethodOptions = ['Any Method', 'Air Fryer', 'Stovetop', 'Oven', 'Microwave', 'Slow Cooker'];
+    const timeAvailableOptions = ['No Limit', '15 minutes', '30 minutes', '1 hour'];
+    
+    const scopeOptionLabels = selectedMealType ? ['This Meal Only', `All ${selectedMealType}s This Week`, "Rest of Today's Meals"] : [];
+    
+    const handleScopeSelect = (label: string) => {
+        if (label.includes('This Meal Only')) setScope('This Meal Only');
+        else if (label.includes('All')) setScope('All Meal Types');
+        else if (label.includes('Rest of Today')) setScope('Rest of Today');
+    };
+
+    const getSelectedScopeLabel = () => {
+        switch (scope) {
+            case 'This Meal Only': return 'This Meal Only';
+            case 'All Meal Types': return `All ${selectedMealType}s This Week`;
+            case 'Rest of Today': return "Rest of Today's Meals";
+            default: return '';
+        }
+    };
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -219,7 +276,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                                                     onToggleFavorite={onToggleFavorite} 
                                                 />
                                             ) : (
-                                                <AddMealButton />
+                                                <AddMealButton onClick={() => handleAddMealClick(day, mealType)} />
                                             )}
                                         </div>
                                     );
@@ -250,7 +307,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                                                     onToggleFavorite={onToggleFavorite} 
                                                 />
                                             ) : (
-                                                <AddMealButton />
+                                                <AddMealButton onClick={() => handleAddMealClick(day, mealType)} />
                                             )}
                                         </div>
                                     );
@@ -260,6 +317,41 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                     );
                 })}
             </div>
+
+             {selectedDay && selectedMealType && (
+                <Modal 
+                    isOpen={isModalOpen} 
+                    onClose={() => setIsModalOpen(false)} 
+                    title={`Generate ${selectedMealType} for ${selectedDay.toLocaleDateString('en-US', { weekday: 'long' })}`}
+                >
+                    <div className="space-y-6">
+                        <SelectionOptionGroup 
+                            title="1. Scope" 
+                            options={scopeOptionLabels} 
+                            selected={getSelectedScopeLabel()} 
+                            onSelect={handleScopeSelect}
+                        />
+                        <SelectionOptionGroup 
+                            title="2. Cooking Method" 
+                            options={cookingMethodOptions} 
+                            selected={cookingMethod} 
+                            onSelect={setCookingMethod} 
+                        />
+                        <SelectionOptionGroup 
+                            title="3. Time Available" 
+                            options={timeAvailableOptions} 
+                            selected={timeAvailable} 
+                            onSelect={setTimeAvailable} 
+                        />
+                         <div className="flex justify-end pt-4 mt-2">
+                            <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="mr-2">Cancel</Button>
+                            <Button onClick={handleGenerate} isLoading={isLoading}>
+                                {isLoading ? "Generating..." : "Generate Meal"}
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };

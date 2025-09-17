@@ -5,6 +5,7 @@ import { Icon } from './common/Icon';
 import { Modal } from './common/Modal';
 import { Button } from './common/Button';
 import { generateSingleMeal } from '../services/geminiService';
+import { SelectionOptionGroup } from './common/SelectionOptionGroup';
 
 
 interface DashboardProps {
@@ -42,28 +43,6 @@ const getNextTask = (mealPlan: MealPlanItem[]) => {
     }
     return null;
 }
-
-const SelectionOptionGroup: React.FC<{ title: string; options: string[]; selected: string; onSelect: (option: string) => void; }> = ({ title, options, selected, onSelect }) => (
-    <div>
-        <h4 className="text-md font-semibold text-text-secondary mb-2">{title}</h4>
-        <div className="flex flex-wrap gap-2">
-            {options.map(option => (
-                <button
-                    key={option}
-                    onClick={() => onSelect(option)}
-                    className={`px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                        selected === option
-                            ? 'bg-primary border-primary text-white'
-                            : 'bg-background-secondary border-neutral-medium/30 text-text-primary hover:border-primary'
-                    }`}
-                >
-                    {option}
-                </button>
-            ))}
-        </div>
-    </div>
-);
-
 
 export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, energyLevel, setEnergyLevel, preferences, pantryItems }) => {
     

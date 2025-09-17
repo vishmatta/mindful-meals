@@ -273,8 +273,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
-                <h1 className="text-3xl font-bold text-text-primary font-heading">Your Meal Plan</h1>
-                <Button onClick={() => onGenerateWeek(currentWeekStart)} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center">
+                <h1 className="text-3xl font-bold text-text-primary font-heading hidden md:block">Your Meal Plan</h1>
+                <Button onClick={() => onGenerateWeek(currentWeekStart)} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center w-full sm:w-auto">
                     {isLoading ? 'Generating...' : 'Generate Week'}
                 </Button>
             </div>

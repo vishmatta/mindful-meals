@@ -89,8 +89,10 @@ export const Cookbook: React.FC<CookbookProps> = ({ cookbook, onToggleFavorite }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <h1 className="text-3xl font-bold text-text-primary font-heading">My Cookbook</h1>
-            <p className="mt-1 text-text-secondary">Your collection of favorite recipes.</p>
+            <div className="hidden md:block">
+                <h1 className="text-3xl font-bold text-text-primary font-heading">My Cookbook</h1>
+                <p className="mt-1 text-text-secondary">Your collection of favorite recipes.</p>
+            </div>
 
             <div className="mt-6 mb-8 p-4 bg-background-secondary rounded-lg shadow-sm flex flex-col sm:flex-row gap-4">
                 <div className="flex-grow">

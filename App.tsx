@@ -23,6 +23,18 @@ const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; ac
     </button>
 );
 
+const MobileNavLink: React.FC<{ item: { view: View; label: string; icon: string; }; active: boolean; onClick: () => void; }> = ({ item, active, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex flex-col items-center justify-center pt-2 pb-1 text-xs font-medium transition-colors ${
+            active ? 'text-primary' : 'text-text-secondary'
+        }`}
+    >
+        <Icon name={item.icon} className="h-6 w-6 mb-1" />
+        <span className="truncate">{item.label}</span>
+    </button>
+);
+
 const capitalize = (s: string) => {
     if (typeof s !== 'string' || s.length === 0) return '';
     return s.charAt(0).toUpperCase() + s.slice(1);
@@ -41,6 +53,8 @@ const createMealPlanItem = (recipe: Recipe, date: Date, mealType: 'Breakfast' | 
         }))
     };
 };
+
+const MOBILE_NAV_VIEWS: View[] = [View.Dashboard, View.MealPlan, View.Pantry, View.ShoppingList, View.Cookbook];
 
 export default function App() {
     const [currentView, setCurrentView] = useState<View>(View.Dashboard);
@@ -497,11 +511,14 @@ export default function App() {
         }
     };
 
+    const currentPage = NAV_ITEMS.find(item => item.view === currentView);
+
     return (
-        <div className="flex h-screen bg-background-primary">
-            <aside className="w-64 bg-background-secondary p-4 border-r border-neutral-medium/20 flex-shrink-0">
+        <div className="h-screen bg-background-primary flex flex-col md:flex-row">
+            {/* Desktop Sidebar */}
+            <aside className="hidden md:flex flex-col w-64 bg-background-secondary p-4 border-r border-neutral-medium/20 flex-shrink-0">
                 <div className="flex justify-center items-center mb-8">
-                    <h1 className="text-4xl font-bold text-primary font-heading">Mindful Meals</h1>
+                    <h1 className="text-4xl font-bold text-primary font-heading text-center">Mindful Meals</h1>
                 </div>
                 <nav className="space-y-2">
                     {NAV_ITEMS.map(item => (
@@ -509,7 +526,16 @@ export default function App() {
                     ))}
                 </nav>
             </aside>
-            <main className="flex-1 overflow-y-auto">
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+                 {/* Mobile Header */}
+                 <header className="md:hidden sticky top-0 bg-background-primary/80 backdrop-blur-sm z-10 p-4 border-b border-neutral-medium/20">
+                    <h1 className="text-2xl font-bold text-text-primary font-heading text-center">
+                        {currentPage?.label}
+                    </h1>
+                </header>
+                
                 {error && (
                     <div className="m-4 p-4 bg-functional-danger/20 text-functional-danger rounded-lg flex justify-between items-center">
                         <span>Error: {error}</span>
@@ -518,6 +544,13 @@ export default function App() {
                 )}
                 {renderView()}
             </main>
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-background-secondary border-t border-neutral-medium/20 grid grid-cols-5 z-20">
+                {NAV_ITEMS.filter(item => MOBILE_NAV_VIEWS.includes(item.view)).map(item => (
+                    <MobileNavLink key={item.view} item={item} active={currentView === item.view} onClick={() => setCurrentView(item.view)} />
+                ))}
+            </nav>
         </div>
     );
 }

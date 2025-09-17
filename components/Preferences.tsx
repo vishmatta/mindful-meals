@@ -79,10 +79,13 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, t
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <h1 className="text-3xl font-bold text-text-primary font-heading">Settings & Preferences</h1>
-            <p className="mt-1 text-text-secondary">Help the app understand your needs better.</p>
+            <div className="hidden md:block">
+                <h1 className="text-3xl font-bold text-text-primary font-heading">Settings & Preferences</h1>
+                <p className="mt-1 text-text-secondary">Help the app understand your needs better.</p>
+            </div>
 
-            <div className="mt-8 max-w-2xl space-y-8">
+
+            <div className="mt-8 max-w-2xl mx-auto md:mx-0 space-y-8">
                 
                 {/* Appearance Section */}
                 <div>

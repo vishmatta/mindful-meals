@@ -56,8 +56,10 @@ export const FridgeRescue: React.FC<FridgeRescueProps> = ({ preferences }) => {
             <div className="max-w-3xl mx-auto">
                 <div className="text-center">
                     <Icon name="rescue" className="mx-auto h-12 w-12 text-primary" />
-                    <h1 className="mt-4 text-3xl font-bold text-text-primary font-heading">Fridge Rescue</h1>
-                    <p className="mt-2 text-lg text-text-secondary">Feeling overwhelmed? Snap a pic of your ingredients, and we'll find a simple meal for you.</p>
+                    <div className="hidden md:block">
+                        <h1 className="mt-4 text-3xl font-bold text-text-primary font-heading">Fridge Rescue</h1>
+                        <p className="mt-2 text-lg text-text-secondary">Feeling overwhelmed? Snap a pic of your ingredients, and we'll find a simple meal for you.</p>
+                    </div>
                 </div>
 
                 <div className="mt-8">

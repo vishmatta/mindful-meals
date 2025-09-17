@@ -138,11 +138,11 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, on
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-                <div>
+                <div className="hidden md:block">
                     <h1 className="text-3xl font-bold text-text-primary font-heading">Shopping List</h1>
                     <p className="mt-1 text-text-secondary">Generated from your meal plan, plus your own items.</p>
                 </div>
-                <div className="flex gap-2 mt-4 sm:mt-0">
+                <div className="flex gap-2 mt-4 sm:mt-0 w-full sm:w-auto justify-end">
                     {items.some(i => i.isChecked) && (
                          <Button onClick={onClearChecked} variant="secondary">
                             <Icon name="trash" className="-ml-1 mr-2 h-5 w-5" />

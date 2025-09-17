@@ -63,9 +63,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
         .slice(0, 3);
         
     const crisisMeals: Recipe[] = [
-        { id: 'c1', name: 'Scrambled Eggs on Toast', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 5, totalTimeMinutes: 7, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General' },
-        { id: 'c2', name: 'Yogurt with Granola', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 0, totalTimeMinutes: 2, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General' },
-        { id: 'c3', name: 'Instant Noodles', description: '', ingredients: [], prepSteps:[], cookingTimeMinutes: 3, totalTimeMinutes: 5, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General' },
+        { id: 'c1', name: 'Scrambled Eggs on Toast', description: 'A quick and classic protein-packed meal.', ingredients: [], prepSteps:[], cookingTimeMinutes: 5, totalTimeMinutes: 7, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General', cookingMethod: 'Stovetop', substitutions: ['Toast can be replaced with a tortilla or eaten alone.'] },
+        { id: 'c2', name: 'Yogurt with Granola', description: 'No cooking required, just combine and enjoy.', ingredients: [], prepSteps:[], cookingTimeMinutes: 0, totalTimeMinutes: 2, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General', cookingMethod: 'None', substitutions: ['Any fruit can be added, like berries or banana.'] },
+        { id: 'c3', name: 'Instant Noodles', description: 'The ultimate low-energy comfort food.', ingredients: [], prepSteps:[], cookingTimeMinutes: 3, totalTimeMinutes: 5, energyLevel: EnergyLevel.SOS, cleanupLevel: 'low', isFavorite: false, cuisine: 'General', cookingMethod: 'Microwave', substitutions: ['Add a soft-boiled egg for more protein.'] },
     ];
     
     const mealsToShow = energyLevel === EnergyLevel.SOS ? crisisMeals : recommendedMeals.map(m => m.recipe as Recipe);
@@ -93,8 +93,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
     };
 
     const mealTypeOptions = ['Any', 'Breakfast', 'Lunch', 'Dinner', 'Snack'];
-    const cookingMethodOptions = ['Any', 'Air Fryer', 'Stovetop', 'Oven', 'Microwave'];
-    const timeAvailableOptions = ['No Limit', '15 min', '30 min', '1 hour'];
+    const cookingMethodOptions = ['Any', 'Air Fryer', 'Stovetop', 'Oven', 'Microwave', 'Slow Cooker'];
+    const timeAvailableOptions = ['No Limit', '15 minutes', '30 minutes', '1 hour'];
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-8">
@@ -174,10 +174,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                  <Modal isOpen={isResultModalOpen} onClose={() => setIsResultModalOpen(false)} title={generatedRecipe.name}>
                     <div className="space-y-4">
                         <p className="text-text-secondary">{generatedRecipe.description}</p>
-                         <div className="flex flex-wrap items-center gap-4 text-xs">
+                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
                             <span title={`Energy: ${ENERGY_LEVELS[generatedRecipe.energyLevel].label}`} className={`px-2 py-1 rounded-full text-white ${ENERGY_LEVELS[generatedRecipe.energyLevel].color}`}>{ENERGY_LEVELS[generatedRecipe.energyLevel].label}</span>
                             <span className="text-text-secondary">Cleanup: {generatedRecipe.cleanupLevel}</span>
                             <span className="text-text-secondary">{generatedRecipe.totalTimeMinutes} min total</span>
+                            {generatedRecipe.cookingMethod && <span className="text-text-secondary">Method: {generatedRecipe.cookingMethod}</span>}
                         </div>
                         <div>
                             <h4 className="font-semibold text-sm mb-2 font-heading">Ingredients</h4>
@@ -191,6 +192,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                                 {generatedRecipe.prepSteps.map((step, i) => <li key={i}>{step.task} ({step.durationMinutes} min)</li>)}
                             </ol>
                         </div>
+                        {generatedRecipe.substitutions && generatedRecipe.substitutions.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-sm mt-4 mb-2 font-heading">Substitutions</h4>
+                                <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">
+                                    {generatedRecipe.substitutions.map((sub, i) => <li key={i}>{sub}</li>)}
+                                </ul>
+                            </div>
+                        )}
                     </div>
                  </Modal>
             )}

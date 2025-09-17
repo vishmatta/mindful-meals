@@ -43,8 +43,14 @@ const recipeSchema = {
         cleanupLevel: { type: Type.STRING, description: 'The cleanup level after cooking. Must be one of the following values: "low", "medium", "high"' },
         isFavorite: { type: Type.BOOLEAN, description: "Set to false by default." },
         cuisine: { type: Type.STRING, description: "The cuisine type of the recipe, e.g., Indian, Mexican, Italian." },
+        cookingMethod: { type: Type.STRING, description: "The primary cooking method used, e.g., 'Oven', 'Stovetop', 'Air Fryer'." },
+        substitutions: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: "An array of strings describing possible ingredient substitutions. For example, 'Chicken can be substituted with tofu'. Provide at least one."
+        }
     },
-    required: ["id", "name", "description", "ingredients", "prepSteps", "cookingTimeMinutes", "totalTimeMinutes", "energyLevel", "cleanupLevel", "isFavorite", "cuisine"],
+    required: ["id", "name", "description", "ingredients", "prepSteps", "cookingTimeMinutes", "totalTimeMinutes", "energyLevel", "cleanupLevel", "isFavorite", "cuisine", "cookingMethod", "substitutions"],
 };
 
 
@@ -77,7 +83,7 @@ export const generateMealPlan = async (preferences: DietaryPreferences, pantry: 
             Current Pantry Items (use these first before adding to a shopping list):
             ${availablePantryItems.map(i => `- ${i.name}`).join('\n') || 'Pantry is empty'}
 
-            Generate 7 dinner recipes based on these rules. For each recipe, also specify its primary cuisine type (e.g., 'Italian', 'Mexican'). Return the response as a JSON array.
+            Generate 7 dinner recipes based on these rules. For each recipe, also specify its primary cuisine type (e.g., 'Italian', 'Mexican'), the primary cookingMethod used, and a list of potential ingredient substitutions. Return the response as a JSON array.
         `;
         
         const response = await ai.models.generateContent({
@@ -136,7 +142,7 @@ export const generateRecipes = async (
             Current Pantry Items (use these first):
             ${availablePantryItems.map(i => `- ${i.name}`).join('\n') || 'Pantry is empty'}
 
-            Generate ${count} ${mealType} recipes based on these rules. Return the response as a JSON array of recipes.
+            Generate ${count} ${mealType} recipes based on these rules. For each recipe, specify the primary 'cookingMethod' and at least one ingredient 'substitution'. Return the response as a JSON array of recipes.
         `;
         
         const response = await ai.models.generateContent({
@@ -172,7 +178,7 @@ export const generateTargetedRecipes = async (
         const availablePantryItems = pantry.filter(i => i.inStock);
         
         let constraints = '';
-        if (cookingMethod !== 'Any Method') {
+        if (cookingMethod !== 'Any Method' && cookingMethod !== 'Any') {
             constraints += `\n- Must use the following cooking method: '${cookingMethod}'.`;
         }
         if (timeAvailable !== 'No Limit') {
@@ -209,7 +215,7 @@ export const generateTargetedRecipes = async (
             Current Pantry Items (use these first):
             ${availablePantryItems.map(i => `- ${i.name}`).join('\n') || 'Pantry is empty'}
 
-            Generate ${count} ${mealType} recipes based on these rules. Return the response as a JSON array of recipes.
+            Generate ${count} ${mealType} recipes based on these rules. For each recipe, specify the primary 'cookingMethod' used (which must adhere to the constraints) and a list of potential ingredient 'substitutions'. Return the response as a JSON array of recipes.
         `;
         
         const response = await ai.models.generateContent({
@@ -258,6 +264,7 @@ export const generateSingleMeal = async (
             - Pantry Items: Prioritize using these ingredients: ${availablePantryItems.map(i => i.name).join('\n')}.
 
             The goal is a simple, easy-to-follow recipe. Break down preparation into small, manageable 'prepSteps'.
+            For the recipe, specify the primary 'cookingMethod' used and a list of potential ingredient 'substitutions'.
             Return the response as a single JSON object.
         `;
 

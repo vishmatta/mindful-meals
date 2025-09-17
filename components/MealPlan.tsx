@@ -68,6 +68,7 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
                  <div className="mt-3 space-y-3 text-xs border-t border-neutral-medium/20 pt-3">
                     <p><b>Cleanup:</b> {recipe.cleanupLevel}</p>
                     <p><b>Total Time:</b> {recipe.totalTimeMinutes} min</p>
+                    {recipe.cookingMethod && <p><b>Method:</b> {recipe.cookingMethod}</p>}
                     <div>
                         <h5 className="font-semibold mb-1">Prep Steps</h5>
                         <ul className="space-y-2">
@@ -87,6 +88,14 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
                             ))}
                         </ul>
                     </div>
+                    {recipe.substitutions && recipe.substitutions.length > 0 && (
+                        <div>
+                            <h5 className="font-semibold mt-2 mb-1">Substitutions</h5>
+                            <ul className="list-disc list-inside space-y-1 text-text-secondary">
+                                {recipe.substitutions.map((sub, i) => <li key={i}>{sub}</li>)}
+                            </ul>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

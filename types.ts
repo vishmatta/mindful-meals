@@ -50,6 +50,8 @@ export interface Recipe {
   cleanupLevel: 'low' | 'medium' | 'high';
   isFavorite: boolean;
   cuisine: string;
+  cookingMethod?: string;
+  substitutions?: string[];
 }
 
 export interface MealPlanItem {

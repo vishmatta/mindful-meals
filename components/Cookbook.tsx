@@ -28,10 +28,11 @@ const RecipeCard: React.FC<{ recipe: Recipe; onToggleFavorite: (recipeId: string
                 </button>
             </div>
             <p className="text-sm text-text-secondary mt-2 flex-grow">{recipe.description}</p>
-            <div className="mt-3 flex items-center gap-4 text-xs">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
                 <span title={`Energy: ${energyConfig.label}`} className={`px-2 py-1 rounded-full text-white ${energyConfig.color}`}>{energyConfig.label}</span>
                 <span className="text-text-secondary">Cleanup: {recipe.cleanupLevel}</span>
                 <span className="text-text-secondary">{recipe.totalTimeMinutes} min total</span>
+                {recipe.cookingMethod && <span className="text-text-secondary">Method: {recipe.cookingMethod}</span>}
             </div>
             <button onClick={() => setIsExpanded(!isExpanded)} className="text-sm font-semibold text-primary hover:text-primary/80 flex items-center w-full justify-between mt-4">
                 <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
@@ -47,6 +48,14 @@ const RecipeCard: React.FC<{ recipe: Recipe; onToggleFavorite: (recipeId: string
                     <ol className="list-decimal list-inside text-sm space-y-1 text-text-secondary">
                         {recipe.prepSteps.map((step, i) => <li key={i}>{step.task} ({step.durationMinutes} min)</li>)}
                     </ol>
+                     {recipe.substitutions && recipe.substitutions.length > 0 && (
+                        <>
+                            <h4 className="font-semibold text-sm mt-4 mb-2 font-heading">Substitutions</h4>
+                            <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">
+                                {recipe.substitutions.map((sub, i) => <li key={i}>{sub}</li>)}
+                            </ul>
+                        </>
+                    )}
                 </div>
             )}
         </div>

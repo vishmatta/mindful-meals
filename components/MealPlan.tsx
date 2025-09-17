@@ -121,6 +121,17 @@ const getMealsForDate = (date: Date, mealPlan: MealPlanItem[]) => {
     return mealMap;
 };
 
+const AddMealButton: React.FC<{ onClick?: () => void }> = ({ onClick }) => (
+    <button 
+        onClick={onClick}
+        type="button"
+        className="w-full h-full min-h-[120px] flex items-center justify-center bg-background-secondary/50 rounded-lg border-2 border-dashed border-neutral-medium/20 text-neutral-medium hover:bg-neutral-light/50 hover:border-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+        aria-label="Add meal"
+    >
+        <Icon name="plus" className="w-8 h-8" />
+    </button>
+);
+
 
 export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType }) => {
     const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
@@ -182,17 +193,55 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                 </div>
             )}
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4">
-                {days.map(day => {
-                    const mealsForDay = getMealsForDate(day, mealPlan);
-                    return (
-                        <div key={day.toISOString()} className="flex flex-col space-y-4 bg-background-secondary/40 p-3 rounded-lg">
-                            <h3 className="font-semibold font-heading text-center">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
-                            <div className="space-y-3">
+            {/* Web Layout */}
+            <div className="hidden md:block">
+                <div className="grid grid-cols-[10rem_repeat(4,1fr)] gap-x-4 text-center font-semibold text-text-secondary mb-2 px-2">
+                    <div className="text-left">Day</div>
+                    <div>Breakfast</div>
+                    <div>Lunch</div>
+                    <div>Snack</div>
+                    <div>Dinner</div>
+                </div>
+                <div className="space-y-2">
+                    {days.map(day => {
+                        const mealsForDay = getMealsForDate(day, mealPlan);
+                        return (
+                            <div key={day.toISOString()} className="grid grid-cols-[10rem_repeat(4,1fr)] gap-x-4 items-stretch rounded-lg bg-background-secondary/40 p-2 min-h-[160px]">
+                                <div className="font-semibold font-heading flex items-center justify-start p-2">{day.toLocaleDateString('en-US', { weekday: 'long' })}</div>
                                 {MEAL_TYPES_ORDER.map(mealType => {
                                     const mealItem = mealsForDay[mealType];
                                     return (
-                                        <div key={mealType}>
+                                        <div key={mealType} className="py-1">
+                                            {mealItem && mealItem.recipe ? (
+                                                <MealCard 
+                                                    item={mealItem} 
+                                                    onToggleTask={(taskId) => onToggleTask(mealItem.date, mealItem.mealType, taskId)} 
+                                                    onToggleFavorite={onToggleFavorite} 
+                                                />
+                                            ) : (
+                                                <AddMealButton />
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* Mobile Layout */}
+            <div className="md:hidden space-y-6">
+                {days.map(day => {
+                    const mealsForDay = getMealsForDate(day, mealPlan);
+                    return (
+                        <div key={day.toISOString()}>
+                            <h3 className="font-semibold font-heading mb-3">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
+                            <div className="flex overflow-x-auto space-x-4 pb-2 -mx-4 px-4">
+                                {MEAL_TYPES_ORDER.map(mealType => {
+                                    const mealItem = mealsForDay[mealType];
+                                    return (
+                                        <div key={mealType} className="w-64 flex-shrink-0">
                                             <h4 className="text-xs font-bold uppercase text-text-secondary mb-1">{mealType}</h4>
                                             {mealItem && mealItem.recipe ? (
                                                 <MealCard 
@@ -201,9 +250,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                                                     onToggleFavorite={onToggleFavorite} 
                                                 />
                                             ) : (
-                                                <div className="bg-background-secondary/50 p-4 rounded-lg shadow-sm h-20 flex justify-center items-center border-2 border-dashed border-neutral-medium/20">
-                                                    <p className="text-neutral-medium text-xs">Empty</p>
-                                                </div>
+                                                <AddMealButton />
                                             )}
                                         </div>
                                     );

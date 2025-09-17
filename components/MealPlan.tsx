@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MealPlanItem, PrepStep } from '../types';
+import { MealPlanItem } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 import { ENERGY_LEVELS } from '../constants';
@@ -73,9 +73,49 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
     );
 };
 
+// Helper to get the Monday of a given date's week
+const getMonday = (d: Date) => {
+    d = new Date(d);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    return new Date(d.setDate(diff));
+};
+
+const formatWeekRange = (start: Date) => {
+    const end = new Date(start);
+    end.setDate(end.getDate() + 6);
+
+    const startMonth = start.toLocaleDateString('en-US', { month: 'short' });
+    const endMonth = end.toLocaleDateString('en-US', { month: 'short' });
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const year = start.getFullYear();
+
+    if (startMonth === endMonth) {
+        return `Week of ${startMonth} ${startDay}-${endDay}, ${year}`;
+    } else {
+        return `Week of ${startMonth} ${startDay} - ${endMonth} ${endDay}, ${year}`;
+    }
+};
+
 export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, onToggleFavorite, isLoading }) => {
+    const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
+    
+    const handlePreviousWeek = () => {
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() - 7);
+        setCurrentWeekStart(newDate);
+    };
+
+    const handleNextWeek = () => {
+        const newDate = new Date(currentWeekStart);
+        newDate.setDate(newDate.getDate() + 7);
+        setCurrentWeekStart(newDate);
+    };
+    
     const days = Array.from({ length: 7 }, (_, i) => {
-        const d = new Date();
+        const d = new Date(currentWeekStart);
         d.setDate(d.getDate() + i);
         return d;
     });
@@ -87,15 +127,23 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
-                <div>
-                    <h1 className="text-3xl font-bold text-text-primary font-heading">Your Meal Plan</h1>
-                    <p className="mt-1 text-text-secondary">A flexible plan for the week ahead.</p>
-                </div>
-                <Button onClick={onGeneratePlan} isLoading={isLoading} className="mt-4 sm:mt-0">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h1 className="text-3xl font-bold text-text-primary font-heading">Your Meal Plan</h1>
+                <Button onClick={onGeneratePlan} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center">
                     {isLoading ? 'Generating...' : 'Generate New Week Plan'}
                 </Button>
             </div>
+            
+            <div className="flex items-center justify-center gap-4 mb-6 p-2 bg-background-secondary rounded-lg">
+                <Button variant="secondary" className="p-2" onClick={handlePreviousWeek} aria-label="Previous week">
+                    <Icon name="chevron-left" className="w-5 h-5" />
+                </Button>
+                <p className="text-text-primary font-semibold w-52 text-center text-sm sm:text-base">{formatWeekRange(currentWeekStart)}</p>
+                <Button variant="secondary" className="p-2" onClick={handleNextWeek} aria-label="Next week">
+                    <Icon name="chevron-right" className="w-5 h-5" />
+                </Button>
+            </div>
+
 
             {mealPlan.length === 0 && !isLoading && (
                 <div className="text-center py-20 bg-background-secondary rounded-lg shadow-sm">
@@ -110,11 +158,11 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                     const mealItem = getMealForDate(day);
                     return (
                         <div key={day.toISOString()} className="flex flex-col space-y-2">
-                            {/* Fix: Corrected typo from toLocaleDateDateString to toLocaleDateString. */}
                             <h3 className="font-semibold font-heading">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
                             {mealItem ? <MealCard item={mealItem} onToggleTask={(taskId) => onToggleTask(mealItem.date, taskId)} onToggleFavorite={onToggleFavorite} /> : (
                                 <div className="bg-neutral-light/50 p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
                                     <p className="text-neutral-medium text-sm">No meal planned</p>
+
                                 </div>
                             )}
                         </div>

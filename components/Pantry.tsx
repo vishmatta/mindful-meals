@@ -105,6 +105,17 @@ const PantryCategory: React.FC<{
 }> = ({ category, items, onToggleStock, onDeleteItem, onUpdateItem, editingItemId, setEditingItemId }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
+    const sortedItems = useMemo(() => {
+        return [...items].sort((a, b) => {
+            // Primary sort: unchecked (inStock: false) items first.
+            if (a.inStock !== b.inStock) {
+                return a.inStock ? 1 : -1;
+            }
+            // Secondary sort: alphabetical by name.
+            return a.name.localeCompare(b.name);
+        });
+    }, [items]);
+
     return (
         <div className="bg-background-secondary rounded-lg shadow-sm overflow-hidden">
             <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center px-4 py-3 bg-background-primary border-b border-neutral-medium/20">
@@ -113,7 +124,7 @@ const PantryCategory: React.FC<{
             </button>
             {isExpanded && (
                 <ul role="list" className="divide-y divide-neutral-medium/20">
-                    {items.length > 0 ? items.map((item) => (
+                    {sortedItems.length > 0 ? sortedItems.map((item) => (
                         <li key={item.id} className="px-4 py-3 flex items-center justify-between">
                              {editingItemId === item.id ? (
                                 <EditItemForm
@@ -134,7 +145,7 @@ const PantryCategory: React.FC<{
                                             onChange={() => onToggleStock(item.id)}
                                             className="h-5 w-5 rounded border-neutral-medium/50 text-primary focus:ring-primary cursor-pointer"
                                         />
-                                        <label htmlFor={`pantry-${item.id}`} className={`ml-3 text-sm font-medium ${item.inStock ? 'text-text-primary' : 'text-text-secondary/70 line-through'}`}>
+                                        <label htmlFor={`pantry-${item.id}`} className={`ml-3 text-sm font-medium ${item.inStock ? 'text-text-secondary/70' : 'text-text-primary'}`}>
                                             {item.name}
                                         </label>
                                     </div>

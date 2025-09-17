@@ -278,8 +278,8 @@ export default function App() {
     return (
         <div className="flex h-screen bg-background-primary">
             <aside className="w-64 bg-background-secondary p-4 border-r border-neutral-medium/20 flex-shrink-0">
-                <div className="flex items-center mb-8">
-                    <h1 className="text-xl font-bold text-primary font-heading">Mindful Meals</h1>
+                <div className="flex justify-center items-center mb-8">
+                    <h1 className="text-4xl font-bold text-primary font-heading">Mindful Meals</h1>
                 </div>
                 <nav className="space-y-2">
                     {NAV_ITEMS.map(item => (

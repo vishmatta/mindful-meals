@@ -70,40 +70,52 @@ export default function App() {
     };
     
     const calculateShoppingList = useCallback(() => {
-        const required = new Map<string, { quantity: number; unit: string }>();
-
+        // A list of common household items that shouldn't be added to the shopping list.
+        const EXCLUDED_ITEMS = new Set(['water', 'salt', 'pepper', 'black pepper', 'oil', 'olive oil', 'vegetable oil']);
+        
+        const required = new Map<string, { quantity: number; unit: string; isOptional: boolean }>();
+    
         mealPlan.forEach(item => {
             item.recipe?.ingredients.forEach(ing => {
-                const key = ing.name.toLowerCase();
-                if (key === 'water') return; // Do not add water to shopping list
-
-                const current = required.get(key) || { quantity: 0, unit: ing.unit };
+                // Clean the ingredient name by removing parenthetical explanations (e.g., "(optional)", "(for garnish)")
+                const cleanedName = ing.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
+    
+                if (cleanedName.length === 0 || EXCLUDED_ITEMS.has(cleanedName)) return;
+    
+                const key = cleanedName;
+                const current = required.get(key) || { quantity: 0, unit: ing.unit, isOptional: true };
+                
                 current.quantity += ing.quantity;
+                // An ingredient is only optional if ALL of its uses in the meal plan are optional.
+                current.isOptional = current.isOptional && (ing.isOptional ?? false);
                 required.set(key, current);
             });
         });
-
+    
         const inStockItems = new Set(
             pantryItems.filter(item => item.inStock).map(item => item.name.toLowerCase())
         );
-
+    
         const newGeneratedItems: ShoppingListItem[] = [];
         required.forEach((value, name) => {
             if (value.quantity > 0 && !inStockItems.has(name)) {
-                newGeneratedItems.push({ 
-                    id: `gen-${new Date().getTime()}-${name}`,
-                    name: capitalize(name), 
-                    quantity: Math.ceil(value.quantity), 
+                newGeneratedItems.push({
+                    // Use a deterministic ID based on the name to prevent re-renders from losing input focus.
+                    id: `gen-${name.replace(/\s+/g, '-')}`,
+                    name: capitalize(name),
+                    quantity: Math.ceil(value.quantity),
                     unit: value.unit,
                     store: 'HEB',
                     isGenerated: true,
                     isChecked: false,
+                    isOptional: value.isOptional,
                 });
             }
         });
-        
+    
         setShoppingList(currentList => {
             const userAddedItems = currentList.filter(item => !item.isGenerated);
+            // Preserve user-added items and merge with the newly generated list, avoiding duplicates.
             const userAddedItemNames = new Set(userAddedItems.map(i => i.name.toLowerCase()));
             const filteredNewGeneratedItems = newGeneratedItems.filter(i => !userAddedItemNames.has(i.name.toLowerCase()));
             return [...userAddedItems, ...filteredNewGeneratedItems];
@@ -194,12 +206,13 @@ export default function App() {
         );
     };
 
-    const handleAddItemToShoppingList = (item: Omit<ShoppingListItem, 'id' | 'isGenerated' | 'isChecked'>) => {
+    const handleAddItemToShoppingList = (item: Omit<ShoppingListItem, 'id' | 'isGenerated' | 'isChecked' | 'isOptional'>) => {
         const newItem: ShoppingListItem = {
             ...item,
             id: `user-${new Date().getTime()}`,
             isGenerated: false,
             isChecked: false,
+            isOptional: false, // User-added items are not optional by default
         };
         setShoppingList(prev => [...prev, newItem]);
     };
@@ -233,6 +246,7 @@ export default function App() {
                     onUpdateItem={handleUpdateShoppingListItem}
                     onDeleteItem={handleDeleteItemFromShoppingList}
                     onClearChecked={handleClearCheckedShoppingListItems}
+                    storeOptions={preferences.shoppingStores}
                 />;
             case View.Preferences:
                 return <Preferences preferences={preferences} onSave={setPreferences} />;

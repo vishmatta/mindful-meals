@@ -5,16 +5,72 @@ import { Button } from './common/Button';
 
 interface ShoppingListProps {
     items: ShoppingListItem[];
-    onAddItem: (item: Omit<ShoppingListItem, 'id' | 'isGenerated' | 'isChecked'>) => void;
+    onAddItem: (item: Omit<ShoppingListItem, 'id' | 'isGenerated' | 'isChecked' | 'isOptional'>) => void;
     onUpdateItem: (id: string, updates: Partial<Omit<ShoppingListItem, 'id'>>) => void;
     onDeleteItem: (id: string) => void;
     onClearChecked: () => void;
+    storeOptions: string[];
 }
+
+const StoreSelector: React.FC<{
+    value: string;
+    onChange: (newValue: string) => void;
+    storeOptions: string[];
+}> = ({ value, onChange, storeOptions }) => {
+    // Ensure "Other" is always an option for the dropdown logic.
+    const optionsWithOther = useMemo(() => 
+        storeOptions.includes('Other') ? storeOptions : [...storeOptions, 'Other'],
+    [storeOptions]);
+    
+    // A value is considered "custom" if it's not in the predefined list.
+    const isCustomValue = !optionsWithOther.includes(value);
+
+    // If the current value is custom, the dropdown should show "Other" as selected.
+    const selectValue = isCustomValue ? 'Other' : value;
+
+    const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const selectedStore = e.target.value;
+        if (selectedStore !== 'Other') {
+            onChange(selectedStore);
+        } else {
+            // When user selects "Other", clear the store value to let them type a new one.
+            onChange(''); 
+        }
+    };
+
+    const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        onChange(e.target.value);
+    };
+
+    return (
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <select
+                value={selectValue}
+                onChange={handleSelectChange}
+                className="block w-full sm:w-32 rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary"
+            >
+                {optionsWithOther.map((store) => (
+                    <option key={store} value={store}>{store}</option>
+                ))}
+            </select>
+            {selectValue === 'Other' && (
+                <input
+                    type="text"
+                    value={isCustomValue ? value : ''}
+                    onChange={handleTextChange}
+                    placeholder="Type store name..."
+                    className="block w-full sm:w-32 rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
+                />
+            )}
+        </div>
+    );
+};
 
 const NewItemForm: React.FC<{
     onAddItem: ShoppingListProps['onAddItem'];
     closeForm: () => void;
-}> = ({ onAddItem, closeForm }) => {
+    storeOptions: string[];
+}> = ({ onAddItem, closeForm, storeOptions }) => {
     const [name, setName] = useState('');
     const [quantity, setQuantity] = useState(1);
     const [unit, setUnit] = useState('');
@@ -31,7 +87,7 @@ const NewItemForm: React.FC<{
     return (
         <form onSubmit={handleSubmit} className="p-4 bg-background-secondary rounded-lg shadow-sm space-y-3 mb-6">
             <h3 className="font-semibold text-lg font-heading">Add Custom Item</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
                 <input
                     type="text"
                     value={name}
@@ -55,13 +111,7 @@ const NewItemForm: React.FC<{
                     placeholder="Unit (e.g., lbs, oz)"
                     className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
                 />
-                <input
-                    type="text"
-                    value={store}
-                    onChange={(e) => setStore(e.target.value)}
-                    placeholder="Store"
-                    className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
-                />
+                 <StoreSelector value={store} onChange={setStore} storeOptions={storeOptions} />
             </div>
             <div className="flex justify-end gap-2">
                 <Button type="button" variant="secondary" onClick={closeForm}>Cancel</Button>
@@ -72,7 +122,7 @@ const NewItemForm: React.FC<{
 };
 
 
-export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, onUpdateItem, onDeleteItem, onClearChecked }) => {
+export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, onUpdateItem, onDeleteItem, onClearChecked, storeOptions }) => {
     const [showForm, setShowForm] = useState(false);
 
     const groupedItems = useMemo(() => {
@@ -106,7 +156,7 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, on
                 </div>
             </div>
             
-            {showForm && <NewItemForm onAddItem={onAddItem} closeForm={() => setShowForm(false)} />}
+            {showForm && <NewItemForm onAddItem={onAddItem} closeForm={() => setShowForm(false)} storeOptions={storeOptions} />}
 
             {items.length > 0 ? (
                 <div className="space-y-6">
@@ -126,16 +176,19 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, on
                                             />
                                             <label htmlFor={`item-${item.id}`} className={`ml-3 block text-sm font-medium ${item.isChecked ? 'line-through text-text-secondary/70' : 'text-text-primary'}`}>
                                                 {item.name}
+                                                {item.isOptional && (
+                                                    <span className="ml-2 text-xs font-semibold bg-functional-info/20 text-text-primary py-0.5 px-2 rounded-full align-middle">
+                                                        Optional
+                                                    </span>
+                                                )}
                                                 <span className="ml-2 text-text-secondary font-normal">{item.quantity > 0 && `${item.quantity} ${item.unit}`}</span>
                                             </label>
                                         </div>
                                         <div className="flex items-center gap-2 w-full sm:w-auto sm:justify-end">
-                                             <input
-                                                type="text"
+                                             <StoreSelector
                                                 value={item.store}
-                                                onChange={(e) => onUpdateItem(item.id, { store: e.target.value })}
-                                                className="block w-full sm:w-32 rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
-                                                placeholder="Store"
+                                                onChange={(newStore) => onUpdateItem(item.id, { store: newStore })}
+                                                storeOptions={storeOptions}
                                             />
                                             <Button variant="secondary" className="p-2" onClick={() => onDeleteItem(item.id)} aria-label="Delete item">
                                                 <Icon name="trash" className="w-4 h-4 text-text-secondary" />

@@ -63,9 +63,16 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave })
     const [weekly, setWeekly] = useState(preferences.weeklyCustomizations);
     const [equipment, setEquipment] = useState(preferences.equipment);
     const [cuisines, setCuisines] = useState(preferences.cuisinePreferences);
+    const [stores, setStores] = useState(preferences.shoppingStores);
 
     const handleSave = () => {
-        onSave({ globalRestrictions: global, weeklyCustomizations: weekly, equipment, cuisinePreferences: cuisines });
+        onSave({ 
+            globalRestrictions: global, 
+            weeklyCustomizations: weekly, 
+            equipment, 
+            cuisinePreferences: cuisines,
+            shoppingStores: stores,
+        });
     };
 
     return (
@@ -97,6 +104,12 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave })
                     items={equipment}
                     setItems={setEquipment}
                     placeholder="e.g., Slow Cooker"
+                />
+                <ListEditor 
+                    title="Shopping Stores"
+                    items={stores}
+                    setItems={setStores}
+                    placeholder="e.g., Trader Joe's"
                 />
                  <div>
                     <Button onClick={handleSave}>Save Preferences</Button>

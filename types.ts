@@ -27,6 +27,7 @@ export interface DietaryPreferences {
   weeklyCustomizations: string[];
   equipment: string[];
   cuisinePreferences: string[];
+  shoppingStores: string[];
 }
 
 export interface PrepStep {
@@ -41,7 +42,7 @@ export interface Recipe {
   name:string;
   description: string;
   // Fix: The 'ingredients' property should be an array to hold multiple ingredients for a recipe.
-  ingredients: (Omit<Ingredient, 'id' | 'category' | 'inStock'> & { quantity: number; unit: string })[];
+  ingredients: (Omit<Ingredient, 'id' | 'category' | 'inStock'> & { quantity: number; unit: string; isOptional: boolean; })[];
   prepSteps: Omit<PrepStep, 'id'|'completed'>[];
   cookingTimeMinutes: number;
   totalTimeMinutes: number;
@@ -66,4 +67,5 @@ export interface ShoppingListItem {
     store: string;
     isGenerated: boolean;
     isChecked: boolean;
+    isOptional: boolean;
 }

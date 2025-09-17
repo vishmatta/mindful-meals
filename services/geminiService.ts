@@ -19,8 +19,9 @@ const recipeSchema = {
                     name: { type: Type.STRING },
                     quantity: { type: Type.NUMBER },
                     unit: { type: Type.STRING },
+                    isOptional: { type: Type.BOOLEAN, description: "Set to true if this ingredient is not essential for the recipe. Default to false." }
                 },
-                required: ["name", "quantity", "unit"],
+                required: ["name", "quantity", "unit", "isOptional"],
             }
         },
         prepSteps: {

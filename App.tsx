@@ -9,7 +9,7 @@ import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
-import { generateMealPlan } from './services/geminiService';
+import { generateMealPlan, generateRecipes } from './services/geminiService';
 
 const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; active: boolean; onClick: () => void; }> = ({ item, active, onClick }) => (
     <button
@@ -27,6 +27,20 @@ const capitalize = (s: string) => {
     if (typeof s !== 'string' || s.length === 0) return '';
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
+
+const createMealPlanItem = (recipe: Recipe, date: Date, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'): MealPlanItem => {
+    const dateString = date.toISOString().split('T')[0];
+    return {
+        date: dateString,
+        mealType,
+        recipe,
+        prepTasks: recipe.prepSteps.map((step, i) => ({
+            ...step,
+            id: `${dateString}-${mealType}-step-${i}`,
+            completed: false
+        }))
+    };
+};
 
 export default function App() {
     const [currentView, setCurrentView] = useState<View>(View.Dashboard);
@@ -68,16 +82,7 @@ export default function App() {
             const newPlan: MealPlanItem[] = recipesWithFavorites.map((recipe, index) => {
                 const date = new Date();
                 date.setDate(date.getDate() + index);
-                return {
-                    date: date.toISOString().split('T')[0],
-                    mealType: 'Dinner',
-                    recipe,
-                    prepTasks: recipe.prepSteps.map((step, i) => ({
-                        ...step,
-                        id: `${date.toISOString().split('T')[0]}-step-${i}`,
-                        completed: false
-                    }))
-                };
+                return createMealPlanItem(recipe, date, 'Dinner');
             });
             setMealPlan(newPlan);
         } catch (err) {
@@ -86,16 +91,75 @@ export default function App() {
             setIsLoading(false);
         }
     };
+
+    const handleFillMealType = async (mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', weekStart: Date) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const recipes = await generateRecipes(preferences, pantryItems, energyLevel, mealType, 7);
+            
+            const newItemsMap = new Map<string, MealPlanItem>();
+            recipes.forEach((recipe, index) => {
+                const date = new Date(weekStart);
+                date.setDate(date.getDate() + index);
+                const newItem = createMealPlanItem(recipe, date, mealType);
+                newItemsMap.set(newItem.date, newItem);
+            });
+    
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekEnd.getDate() + 6);
+            const weekStartString = weekStart.toISOString().split('T')[0];
+            const weekEndString = weekEnd.toISOString().split('T')[0];
+    
+            const otherItems = mealPlan.filter(item => {
+                const isSameMealType = item.mealType === mealType;
+                const isInWeek = item.date >= weekStartString && item.date <= weekEndString;
+                return !(isSameMealType && isInWeek);
+            });
+    
+            setMealPlan([...otherItems, ...Array.from(newItemsMap.values())].sort((a, b) => a.date.localeCompare(b.date)));
+    
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+    
+    const handleGenerateToday = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const mealTypes: ('Breakfast' | 'Lunch' | 'Dinner' | 'Snack')[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+            const promises = mealTypes.map(mt => generateRecipes(preferences, pantryItems, energyLevel, mt, 1));
+            const results = await Promise.all(promises);
+    
+            const today = new Date();
+            const todayString = today.toISOString().split('T')[0];
+    
+            const newTodayItems = results.map((recipeArray, index) => {
+                if (!recipeArray || recipeArray.length === 0) return null;
+                return createMealPlanItem(recipeArray[0], today, mealTypes[index]);
+            }).filter((item): item is MealPlanItem => item !== null);
+    
+            const otherItems = mealPlan.filter(item => item.date !== todayString);
+            
+            setMealPlan([...otherItems, ...newTodayItems].sort((a, b) => a.date.localeCompare(b.date)));
+    
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        } finally {
+            setIsLoading(false);
+        }
+    };
     
     const calculateShoppingList = useCallback(() => {
-        // A list of common household items that shouldn't be added to the shopping list.
         const EXCLUDED_ITEMS = new Set(['water', 'salt', 'pepper', 'black pepper', 'oil', 'olive oil', 'vegetable oil']);
         
         const required = new Map<string, { quantity: number; unit: string; isOptional: boolean }>();
     
         mealPlan.forEach(item => {
             item.recipe?.ingredients.forEach(ing => {
-                // Clean the ingredient name by removing parenthetical explanations (e.g., "(optional)", "(for garnish)")
                 const cleanedName = ing.name.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').trim();
     
                 if (cleanedName.length === 0 || EXCLUDED_ITEMS.has(cleanedName)) return;
@@ -104,7 +168,6 @@ export default function App() {
                 const current = required.get(key) || { quantity: 0, unit: ing.unit, isOptional: true };
                 
                 current.quantity += ing.quantity;
-                // An ingredient is only optional if ALL of its uses in the meal plan are optional.
                 current.isOptional = current.isOptional && (ing.isOptional ?? false);
                 required.set(key, current);
             });
@@ -118,7 +181,6 @@ export default function App() {
         required.forEach((value, name) => {
             if (value.quantity > 0 && !inStockItems.has(name)) {
                 newGeneratedItems.push({
-                    // Use a deterministic ID based on the name to prevent re-renders from losing input focus.
                     id: `gen-${name.replace(/\s+/g, '-')}`,
                     name: capitalize(name),
                     quantity: Math.ceil(value.quantity),
@@ -133,7 +195,6 @@ export default function App() {
     
         setShoppingList(currentList => {
             const userAddedItems = currentList.filter(item => !item.isGenerated);
-            // Preserve user-added items and merge with the newly generated list, avoiding duplicates.
             const userAddedItemNames = new Set(userAddedItems.map(i => i.name.toLowerCase()));
             const filteredNewGeneratedItems = newGeneratedItems.filter(i => !userAddedItemNames.has(i.name.toLowerCase()));
             return [...userAddedItems, ...filteredNewGeneratedItems];
@@ -170,10 +231,10 @@ export default function App() {
         );
     };
     
-    const handleToggleTask = (mealDate: string, taskId: string) => {
+    const handleToggleTask = (mealDate: string, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', taskId: string) => {
         setMealPlan(currentPlan =>
             currentPlan.map(item => {
-                if (item.date === mealDate) {
+                if (item.date === mealDate && item.mealType === mealType) {
                     return {
                         ...item,
                         prepTasks: item.prepTasks.map(task =>
@@ -188,15 +249,9 @@ export default function App() {
 
     const handleToggleFavorite = (recipeId: string) => {
         let sourceRecipe: Recipe | undefined;
-        for (const item of mealPlan) {
-            if (item.recipe?.id === recipeId) {
-                sourceRecipe = item.recipe;
-                break;
-            }
-        }
-        if (!sourceRecipe) {
-            sourceRecipe = cookbook.find(r => r.id === recipeId);
-        }
+        
+        const mealPlanRecipe = mealPlan.find(item => item.recipe?.id === recipeId)?.recipe;
+        sourceRecipe = mealPlanRecipe || cookbook.find(r => r.id === recipeId);
 
         if (!sourceRecipe) return;
         
@@ -205,7 +260,7 @@ export default function App() {
 
         if (isNowFavorite) {
             setCookbook(prev => {
-                if (prev.find(r => r.id === recipeId)) {
+                if (prev.some(r => r.id === recipeId)) {
                     return prev.map(r => r.id === recipeId ? updatedRecipe : r);
                 }
                 return [...prev, updatedRecipe];
@@ -259,7 +314,15 @@ export default function App() {
                     pantryItems={pantryItems}
                 />;
             case View.MealPlan:
-                return <MealPlan mealPlan={mealPlan} onGeneratePlan={handleGeneratePlan} onToggleTask={handleToggleTask} onToggleFavorite={handleToggleFavorite} isLoading={isLoading} />;
+                return <MealPlan 
+                    mealPlan={mealPlan} 
+                    onGeneratePlan={handleGeneratePlan} 
+                    onToggleTask={handleToggleTask} 
+                    onToggleFavorite={handleToggleFavorite} 
+                    isLoading={isLoading}
+                    onGenerateToday={handleGenerateToday}
+                    onFillMealType={handleFillMealType}
+                />;
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;
             case View.Pantry:

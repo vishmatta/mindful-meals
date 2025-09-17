@@ -362,36 +362,62 @@ export default function App() {
         );
     };
 
-    const handleToggleFavorite = (recipeId: string) => {
-        let sourceRecipe: Recipe | undefined;
-        
-        const mealPlanRecipe = mealPlan.find(item => item.recipe?.id === recipeId)?.recipe;
-        sourceRecipe = mealPlanRecipe || cookbook.find(r => r.id === recipeId);
-
-        if (!sourceRecipe) return;
-        
-        const isNowFavorite = !sourceRecipe.isFavorite;
-        const updatedRecipe = { ...sourceRecipe, isFavorite: isNowFavorite };
-
-        if (isNowFavorite) {
-            setCookbook(prev => {
-                if (prev.some(r => r.id === recipeId)) {
-                    return prev.map(r => r.id === recipeId ? updatedRecipe : r);
+    const handleToggleFavorite = (recipeId: string, mealDate?: MealPlanItem['date'], mealType?: MealPlanItem['mealType']) => {
+        const isMealPlanToggle = !!(mealDate && mealType);
+    
+        if (isMealPlanToggle) {
+            // Logic for a specific favorite toggle from the Meal Plan
+            const planItem = mealPlan.find(i => i.date === mealDate && i.mealType === mealType);
+            if (!planItem || !planItem.recipe) return;
+    
+            const isNowFavorite = !planItem.recipe.isFavorite;
+    
+            // Update only the specific meal plan item with a new recipe object to break reference
+            const updatedPlan = mealPlan.map(item => 
+                (item.date === mealDate && item.mealType === mealType) 
+                ? { ...item, recipe: { ...item.recipe!, isFavorite: isNowFavorite } } 
+                : item
+            );
+            setMealPlan(updatedPlan);
+            
+            // Now, update the cookbook based on this change
+            if (isNowFavorite) {
+                setCookbook(prev => {
+                    if (!prev.some(r => r.id === recipeId)) {
+                        return [...prev, { ...planItem.recipe!, isFavorite: true }];
+                    }
+                    return prev;
+                });
+            } else {
+                // Check if any other instance in the *newly updated* plan is still a favorite
+                const anyOtherIsFavorite = updatedPlan.some(i => i.recipe?.id === recipeId && i.recipe.isFavorite);
+                if (!anyOtherIsFavorite) {
+                    setCookbook(prev => prev.filter(r => r.id !== recipeId));
                 }
-                return [...prev, updatedRecipe];
-            });
+            }
         } else {
-            setCookbook(prev => prev.filter(r => r.id !== recipeId));
-        }
-
-        setMealPlan(prevPlan => 
-            prevPlan.map(item => {
+            // Logic for a global favorite toggle from the Cookbook
+            const isCurrentlyFavorite = cookbook.some(r => r.id === recipeId);
+            const isNowFavorite = !isCurrentlyFavorite;
+    
+            // Update cookbook first
+            if (isNowFavorite) {
+                const recipeToAdd = mealPlan.find(i => i.recipe?.id === recipeId)?.recipe || cookbook.find(r => r.id === recipeId);
+                if (recipeToAdd && !cookbook.some(r => r.id === recipeId)) {
+                     setCookbook(prev => [...prev, { ...recipeToAdd, isFavorite: true }]);
+                }
+            } else {
+                setCookbook(prev => prev.filter(r => r.id !== recipeId));
+            }
+    
+            // Sync this global change to ALL meal plan items
+            setMealPlan(prev => prev.map(item => {
                 if (item.recipe?.id === recipeId) {
                     return { ...item, recipe: { ...item.recipe, isFavorite: isNowFavorite } };
                 }
                 return item;
-            })
-        );
+            }));
+        }
     };
 
     const handleAddItemToShoppingList = (item: Omit<ShoppingListItem, 'id' | 'isGenerated' | 'isChecked' | 'isOptional'>) => {

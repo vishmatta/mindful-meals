@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MealPlanItem } from '../types';
+import { MealPlanItem, Recipe } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 import { ENERGY_LEVELS } from '../constants';
@@ -12,7 +12,7 @@ interface MealPlanProps {
     mealPlan: MealPlanItem[];
     onGenerateWeek: (weekStart: Date) => Promise<void>;
     onToggleTask: (mealDate: string, mealType: MealType, taskId: string) => void;
-    onToggleFavorite: (recipeId: string) => void;
+    onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
     isLoading: boolean;
     onGenerateToday: () => Promise<void>;
     onFillMealType: (mealType: MealType, weekStart: Date) => Promise<void>;
@@ -29,7 +29,7 @@ interface MealPlanProps {
     onClearFailedSlot: (slotKey: string) => void;
 }
 
-const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
+const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
     const { recipe, prepTasks } = item;
     const [isExpanded, setIsExpanded] = useState(false);
 
@@ -49,7 +49,7 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
                 <div className="flex justify-between items-start">
                     <h4 className="font-bold text-sm pr-2 font-heading">{recipe.name}</h4>
                     <button
-                        onClick={() => onToggleFavorite(recipe.id)}
+                        onClick={() => onToggleFavorite(recipe.id, item.date, item.mealType)}
                         className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex-shrink-0"
                         aria-label={recipe.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                     >

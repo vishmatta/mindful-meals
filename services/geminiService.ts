@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 import { DietaryPreferences, Ingredient, Recipe, EnergyLevel } from '../types';
 
@@ -53,6 +52,17 @@ const recipeSchema = {
     required: ["id", "name", "description", "ingredients", "prepSteps", "cookingTimeMinutes", "totalTimeMinutes", "energyLevel", "cleanupLevel", "isFavorite", "cuisine", "cookingMethod", "substitutions"],
 };
 
+const fullDayMealSchema = {
+    type: Type.OBJECT,
+    properties: {
+        breakfast: recipeSchema,
+        lunch: recipeSchema,
+        snack: recipeSchema,
+        dinner: recipeSchema,
+    },
+    required: ["breakfast", "lunch", "snack", "dinner"],
+};
+
 
 export const generateMealPlan = async (preferences: DietaryPreferences, pantry: Ingredient[], energyLevel: EnergyLevel): Promise<Recipe[]> => {
     try {
@@ -105,6 +115,63 @@ export const generateMealPlan = async (preferences: DietaryPreferences, pantry: 
         throw new Error("Failed to generate meal plan. The AI might be busy, please try again later.");
     }
 };
+
+export const generateDayMeals = async (
+    preferences: DietaryPreferences,
+    pantry: Ingredient[],
+    energyLevel: EnergyLevel,
+): Promise<{ breakfast: Recipe; lunch: Recipe; snack: Recipe; dinner: Recipe; }> => {
+    try {
+        const availablePantryItems = pantry.filter(i => i.inStock);
+        const prompt = `
+            Create a full day of meals (Breakfast, Lunch, Snack, and Dinner) for a user with ADHD.
+            The goal is to minimize decision fatigue and overwhelm.
+
+            IMPORTANT: The user's current energy level is '${energyLevel}'. Please create recipes that reflect this.
+            - For 'FULL_POWER', suggest more engaging or complex recipes.
+            - For 'CRUISING', provide standard recipes.
+            - For 'LOW_BATTERY', prioritize quick and simple meals.
+            - For 'SOS', the recipes must take less than 15 minutes and require minimal cleanup.
+            
+            General rules:
+            - Create one recipe for each meal type: Breakfast, Lunch, Snack, and Dinner.
+            - Consider ingredient reusability across the day's meals if possible.
+            - Break down all preparation into small, manageable 'prepSteps'.
+            - The user has the following equipment: ${preferences.equipment.join(', ')}.
+
+            Global Dietary Restrictions (NEVER include these):
+            - ${preferences.globalRestrictions.join(', ') || 'None'}
+
+            This Week's Preferences (Try to incorporate these):
+            - ${preferences.weeklyCustomizations.join(', ') || 'None'}
+            
+            Preferred Cuisines (focus on these styles of food):
+            - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
+
+            Current Pantry Items (use these first):
+            ${availablePantryItems.map(i => `- ${i.name}`).join('\n') || 'Pantry is empty'}
+
+            Generate one recipe for each meal type. For each recipe, specify the primary 'cookingMethod' and at least one ingredient 'substitution'. 
+            Return the response as a single JSON object with keys "breakfast", "lunch", "snack", and "dinner", where each key holds a complete recipe object.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: fullDayMealSchema,
+            },
+        });
+        
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+    } catch (error) {
+        console.error(`Error generating day meals:`, error);
+        throw new Error(`Failed to generate a full day's meals. The AI might be busy, please try again later.`);
+    }
+};
+
 
 export const generateRecipes = async (
     preferences: DietaryPreferences,

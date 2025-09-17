@@ -9,7 +9,7 @@ import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
-import { generateMealPlan, generateRecipes, generateTargetedRecipes } from './services/geminiService';
+import { generateMealPlan, generateRecipes, generateTargetedRecipes, generateDayMeals } from './services/geminiService';
 
 const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; active: boolean; onClick: () => void; }> = ({ item, active, onClick }) => (
     <button
@@ -54,6 +54,10 @@ export default function App() {
     const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
+    // State for granular UI feedback during generation
+    const [loadingSlots, setLoadingSlots] = useState<string[]>([]);
+    const [failedSlots, setFailedSlots] = useState<Record<string, string>>({});
+
     useEffect(() => {
         const savedTheme = localStorage.getItem('theme');
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -71,25 +75,80 @@ export default function App() {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    const handleGeneratePlan = async () => {
+    const handleGenerateWeek = async (weekStart: Date) => {
+        const weekDates = Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(weekStart);
+            d.setDate(d.getDate() + i);
+            return d;
+        });
+
+        const allSlots = weekDates.flatMap(d => 
+            ['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(mt => `${d.toISOString().split('T')[0]}-${mt}`)
+        );
+
         setIsLoading(true);
         setError(null);
-        try {
-            const recipes: Recipe[] = await generateMealPlan(preferences, pantryItems, energyLevel);
-            const favoriteIds = new Set(cookbook.map(r => r.id));
-            const recipesWithFavorites = recipes.map(r => ({ ...r, isFavorite: favoriteIds.has(r.id) }));
+        setLoadingSlots(current => [...new Set([...current, ...allSlots])]);
+        setFailedSlots(current => {
+            const next = { ...current };
+            allSlots.forEach(s => delete next[s]);
+            return next;
+        });
 
-            const newPlan: MealPlanItem[] = recipesWithFavorites.map((recipe, index) => {
-                const date = new Date();
-                date.setDate(date.getDate() + index);
-                return createMealPlanItem(recipe, date, 'Dinner');
+        try {
+            const promises = weekDates.map(date => generateDayMeals(preferences, pantryItems, energyLevel));
+            const results = await Promise.allSettled(promises);
+
+            const newItems: MealPlanItem[] = [];
+            const newFailedSlots: Record<string, string> = {};
+
+            results.forEach((result, index) => {
+                const day = weekDates[index];
+                if (result.status === 'fulfilled') {
+                    const dayMeals = result.value;
+                    newItems.push(createMealPlanItem(dayMeals.breakfast, day, 'Breakfast'));
+                    newItems.push(createMealPlanItem(dayMeals.lunch, day, 'Lunch'));
+                    newItems.push(createMealPlanItem(dayMeals.snack, day, 'Snack'));
+                    newItems.push(createMealPlanItem(dayMeals.dinner, day, 'Dinner'));
+                } else {
+                    const dateString = day.toISOString().split('T')[0];
+                    const errorMessage = result.reason instanceof Error ? result.reason.message : 'Generation failed';
+                    ['Breakfast', 'Lunch', 'Snack', 'Dinner'].forEach(mt => {
+                        newFailedSlots[`${dateString}-${mt}`] = errorMessage;
+                    });
+                }
             });
-            setMealPlan(newPlan);
+            
+            if (Object.keys(newFailedSlots).length > 0) {
+                 setError("Some meals could not be generated. Please try again.");
+            }
+
+            setMealPlan(current => {
+                const weekStartString = weekStart.toISOString().split('T')[0];
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekEnd.getDate() + 6);
+                const weekEndString = weekEnd.toISOString().split('T')[0];
+
+                const otherItems = current.filter(item => item.date < weekStartString || item.date > weekEndString);
+                return [...otherItems, ...newItems].sort((a, b) => a.date.localeCompare(b.date));
+            });
+            
+            setFailedSlots(current => ({ ...current, ...newFailedSlots }));
+
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred');
         } finally {
             setIsLoading(false);
+            setLoadingSlots(current => current.filter(s => !allSlots.includes(s)));
         }
+    };
+    
+    const handleClearFailedSlot = (slotKey: string) => {
+        setFailedSlots(current => {
+            const next = { ...current };
+            delete next[slotKey];
+            return next;
+        });
     };
 
     const handleGenerateTargetedMeals = async (
@@ -102,105 +161,110 @@ export default function App() {
     ) => {
         setIsLoading(true);
         setError(null);
+        
+        // Determine slots to update
+        let targetSlots: { date: Date; mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack' }[] = [];
+        if (scope === 'This Meal Only') {
+            targetSlots = [{ date: day, mealType }];
+        } else if (scope === 'All Meal Types') {
+            targetSlots = Array.from({ length: 7 }, (_, i) => {
+                const d = new Date(weekStart);
+                d.setDate(d.getDate() + i);
+                return { date: d, mealType };
+            });
+        } else if (scope === 'Rest of Today') {
+            const todayString = day.toISOString().split('T')[0];
+            const mealsForToday = mealPlan.filter(item => item.date === todayString);
+            const mealTypesForToday = new Set(mealsForToday.map(item => item.mealType));
+            const allMealTypes: ('Breakfast' | 'Lunch' | 'Dinner' | 'Snack')[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+            const mealTypeIndex = allMealTypes.indexOf(mealType);
+            const mealTypesToFill = allMealTypes.slice(mealTypeIndex).filter(mt => !mealTypesForToday.has(mt));
+            targetSlots = mealTypesToFill.map(mt => ({ date: day, mealType: mt }));
+        }
+        
+        const slotKeys = targetSlots.map(s => `${s.date.toISOString().split('T')[0]}-${s.mealType}`);
+        setLoadingSlots(current => [...new Set([...current, ...slotKeys])]);
+        setFailedSlots(current => {
+            const next = { ...current };
+            slotKeys.forEach(key => delete next[key]);
+            return next;
+        });
+
         try {
-            if (scope === 'This Meal Only') {
-                const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, 1, cookingMethod, timeAvailable);
-                if (recipes.length > 0) {
-                    const newItem = createMealPlanItem(recipes[0], day, mealType);
-                    setMealPlan(current => {
-                        const others = current.filter(item => !(item.date === newItem.date && item.mealType === newItem.mealType));
-                        return [...others, newItem].sort((a, b) => a.date.localeCompare(b.date));
-                    });
-                }
-            } else if (scope === 'All Meal Types') {
-                const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, 7, cookingMethod, timeAvailable);
-                
-                const newItemsMap = new Map<string, MealPlanItem>();
-                recipes.forEach((recipe, index) => {
-                    const date = new Date(weekStart);
-                    date.setDate(date.getDate() + index);
-                    const newItem = createMealPlanItem(recipe, date, mealType);
-                    newItemsMap.set(newItem.date, newItem);
-                });
-        
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                const weekStartString = weekStart.toISOString().split('T')[0];
-                const weekEndString = weekEnd.toISOString().split('T')[0];
-        
-                const otherItems = mealPlan.filter(item => {
-                    const isSameMealType = item.mealType === mealType;
-                    const isInWeek = item.date >= weekStartString && item.date <= weekEndString;
-                    return !(isSameMealType && isInWeek);
-                });
-        
-                setMealPlan([...otherItems, ...Array.from(newItemsMap.values())].sort((a, b) => a.date.localeCompare(b.date)));
-            } else if (scope === 'Rest of Today') {
-                const todayString = day.toISOString().split('T')[0];
-                const mealsForToday = mealPlan.filter(item => item.date === todayString);
-                const mealTypesForToday = new Set(mealsForToday.map(item => item.mealType));
-
-                const allMealTypes: ('Breakfast' | 'Lunch' | 'Dinner' | 'Snack')[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
-                const mealTypeIndex = allMealTypes.indexOf(mealType);
-                
-                const mealTypesToFill = allMealTypes.slice(mealTypeIndex).filter(mt => !mealTypesForToday.has(mt));
-
-                if (mealTypesToFill.length > 0) {
-                    const promises = mealTypesToFill.map(mt => 
-                        generateTargetedRecipes(preferences, pantryItems, energyLevel, mt, 1, cookingMethod, timeAvailable)
-                    );
-                    const results = await Promise.all(promises);
-
-                    const newItems = results.flatMap((recipeArray, index) => {
-                         if (!recipeArray || recipeArray.length === 0) return [];
-                         return createMealPlanItem(recipeArray[0], day, mealTypesToFill[index]);
-                    });
-
-                    const otherItems = mealPlan.filter(item => {
-                        const isToday = item.date === todayString;
-                        const isMealToFill = mealTypesToFill.includes(item.mealType as any);
-                        return !(isToday && isMealToFill);
-                    });
-                    
-                    setMealPlan([...otherItems, ...newItems].sort((a,b)=> a.date.localeCompare(b.date)));
-                }
+            const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, targetSlots.length, cookingMethod, timeAvailable);
+            
+            if (recipes.length !== targetSlots.length) {
+                throw new Error("Could not generate the requested number of meals.");
             }
+            
+            const newItems = recipes.map((recipe, index) => {
+                const target = targetSlots[index];
+                return createMealPlanItem(recipe, target.date, target.mealType);
+            });
+
+            setMealPlan(current => {
+                const newItemsMap = new Map(newItems.map(i => [`${i.date}-${i.mealType}`, i]));
+                const otherItems = current.filter(item => !newItemsMap.has(`${item.date}-${item.mealType}`));
+                return [...otherItems, ...newItems].sort((a, b) => a.date.localeCompare(b.date));
+            });
+
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+            const message = err instanceof Error ? err.message : 'An unknown error occurred';
+            setError(message);
+            setFailedSlots(current => {
+                const next = { ...current };
+                slotKeys.forEach(key => next[key] = "Failed");
+                return next;
+            });
         } finally {
             setIsLoading(false);
+            setLoadingSlots(current => current.filter(s => !slotKeys.includes(s)));
         }
     };
 
     const handleFillMealType = async (mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', weekStart: Date) => {
-        // A `day` parameter is required, but it's not used for the 'All Meal Types' scope, so we can pass any valid date.
         await handleGenerateTargetedMeals(weekStart, mealType, 'All Meal Types', 'Any Method', 'No Limit', weekStart);
     };
     
     const handleGenerateToday = async () => {
+        const today = new Date();
+        const todayString = today.toISOString().split('T')[0];
+        const slots = ['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(mt => `${todayString}-${mt}`);
+        
         setIsLoading(true);
         setError(null);
+        setLoadingSlots(current => [...new Set([...current, ...slots])]);
+        setFailedSlots(current => {
+            const next = { ...current };
+            slots.forEach(s => delete next[s]);
+            return next;
+        });
+
         try {
-            const mealTypes: ('Breakfast' | 'Lunch' | 'Dinner' | 'Snack')[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
-            const promises = mealTypes.map(mt => generateRecipes(preferences, pantryItems, energyLevel, mt, 1));
-            const results = await Promise.all(promises);
+            const dayMeals = await generateDayMeals(preferences, pantryItems, energyLevel);
     
-            const today = new Date();
-            const todayString = today.toISOString().split('T')[0];
-    
-            const newTodayItems = results.map((recipeArray, index) => {
-                if (!recipeArray || recipeArray.length === 0) return null;
-                return createMealPlanItem(recipeArray[0], today, mealTypes[index]);
-            }).filter((item): item is MealPlanItem => item !== null);
+            const newTodayItems: MealPlanItem[] = [
+                createMealPlanItem(dayMeals.breakfast, today, 'Breakfast'),
+                createMealPlanItem(dayMeals.lunch, today, 'Lunch'),
+                createMealPlanItem(dayMeals.snack, today, 'Snack'),
+                createMealPlanItem(dayMeals.dinner, today, 'Dinner'),
+            ];
     
             const otherItems = mealPlan.filter(item => item.date !== todayString);
             
             setMealPlan([...otherItems, ...newTodayItems].sort((a, b) => a.date.localeCompare(b.date)));
     
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+            const message = err instanceof Error ? err.message : 'An unknown error occurred';
+            setError(message);
+            setFailedSlots(current => {
+                const next = { ...current };
+                slots.forEach(s => { next[s] = "Failed"; });
+                return next;
+            });
         } finally {
             setIsLoading(false);
+            setLoadingSlots(current => current.filter(s => !slots.includes(s)));
         }
     };
     
@@ -367,13 +431,16 @@ export default function App() {
             case View.MealPlan:
                 return <MealPlan 
                     mealPlan={mealPlan} 
-                    onGeneratePlan={handleGeneratePlan} 
+                    onGenerateWeek={handleGenerateWeek} 
                     onToggleTask={handleToggleTask} 
                     onToggleFavorite={handleToggleFavorite} 
                     isLoading={isLoading}
                     onGenerateToday={handleGenerateToday}
                     onFillMealType={handleFillMealType}
                     onGenerateTargetedMeals={handleGenerateTargetedMeals}
+                    loadingSlots={loadingSlots}
+                    failedSlots={failedSlots}
+                    onClearFailedSlot={handleClearFailedSlot}
                 />;
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;

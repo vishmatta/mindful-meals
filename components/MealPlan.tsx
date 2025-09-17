@@ -10,7 +10,7 @@ type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 interface MealPlanProps {
     mealPlan: MealPlanItem[];
-    onGeneratePlan: () => Promise<void>;
+    onGenerateWeek: (weekStart: Date) => Promise<void>;
     onToggleTask: (mealDate: string, mealType: MealType, taskId: string) => void;
     onToggleFavorite: (recipeId: string) => void;
     isLoading: boolean;
@@ -24,6 +24,9 @@ interface MealPlanProps {
         timeAvailable: string,
         weekStart: Date
     ) => Promise<void>;
+    loadingSlots: string[];
+    failedSlots: Record<string, string>;
+    onClearFailedSlot: (slotKey: string) => void;
 }
 
 const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
@@ -54,8 +57,9 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
                     </button>
                 </div>
                 <p className="text-xs text-text-secondary mt-1 line-clamp-2">{recipe.description}</p>
-                <div className="mt-2 flex items-center gap-2 text-xs">
+                 <div className="mt-2 flex items-center flex-wrap gap-x-3 gap-y-1 text-xs">
                     <span title={`Energy: ${energyConfig.label}`} className={`px-2 py-0.5 rounded-full text-white ${energyConfig.color}`}>{energyConfig.label}</span>
+                    <span className="text-text-secondary">{recipe.totalTimeMinutes} min</span>
                 </div>
             </div>
             <div className="mt-3">
@@ -67,7 +71,6 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
             {isExpanded && (
                  <div className="mt-3 space-y-3 text-xs border-t border-neutral-medium/20 pt-3">
                     <p><b>Cleanup:</b> {recipe.cleanupLevel}</p>
-                    <p><b>Total Time:</b> {recipe.totalTimeMinutes} min</p>
                     {recipe.cookingMethod && <p><b>Method:</b> {recipe.cookingMethod}</p>}
                     <div>
                         <h5 className="font-semibold mb-1">Prep Steps</h5>
@@ -140,11 +143,33 @@ const getMealsForDate = (date: Date, mealPlan: MealPlanItem[]) => {
     return mealMap;
 };
 
+const SlotContainer: React.FC<{ children: React.ReactNode, className?: string }> = ({ children, className }) => (
+    <div className={`w-full h-full min-h-[140px] flex items-center justify-center bg-neutral-light/50 rounded-lg ${className}`}>
+        {children}
+    </div>
+);
+
+const LoadingSlot: React.FC = () => (
+    <SlotContainer>
+        <Icon name="loading" className="w-8 h-8 text-primary animate-spin" />
+    </SlotContainer>
+);
+
+const ErrorSlot: React.FC<{ onRetry: () => void }> = ({ onRetry }) => (
+    <SlotContainer className="flex-col p-2 text-center">
+        <p className="text-xs text-functional-danger mb-2">Generation Failed</p>
+        <Button variant="secondary" onClick={onRetry} className="py-1 px-2 text-xs">
+            <Icon name="refresh" className="w-4 h-4 mr-1"/>
+            Retry
+        </Button>
+    </SlotContainer>
+);
+
 const AddMealButton: React.FC<{ onClick?: () => void }> = ({ onClick }) => (
     <button 
         onClick={onClick}
         type="button"
-        className="w-full h-full min-h-[120px] flex items-center justify-center bg-background-secondary/50 rounded-lg border-2 border-dashed border-neutral-medium/20 text-neutral-medium hover:bg-neutral-light/50 hover:border-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+        className="w-full h-full min-h-[140px] flex items-center justify-center bg-neutral-light/50 rounded-lg border-neutral-medium/20 text-neutral-medium hover:bg-neutral-light hover:border-primary transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
         aria-label="Add meal"
     >
         <Icon name="plus" className="w-8 h-8" />
@@ -152,7 +177,10 @@ const AddMealButton: React.FC<{ onClick?: () => void }> = ({ onClick }) => (
 );
 
 
-export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals }) => {
+export const MealPlan: React.FC<MealPlanProps> = ({ 
+    mealPlan, onGenerateWeek, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals,
+    loadingSlots, failedSlots, onClearFailedSlot
+}) => {
     const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
 
     // Modal state
@@ -220,12 +248,34 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
         }
     };
 
+    const renderMealSlot = (day: Date, mealType: MealType) => {
+        const slotKey = `${day.toISOString().split('T')[0]}-${mealType}`;
+
+        if (loadingSlots.includes(slotKey)) {
+            return <LoadingSlot />;
+        }
+
+        if (failedSlots[slotKey]) {
+            return <ErrorSlot onRetry={() => { onClearFailedSlot(slotKey); handleAddMealClick(day, mealType); }} />;
+        }
+
+        const mealsForDay = getMealsForDate(day, mealPlan);
+        const mealItem = mealsForDay[mealType];
+
+        if (mealItem && mealItem.recipe) {
+            return <MealCard item={mealItem} onToggleTask={(taskId) => onToggleTask(mealItem.date, mealItem.mealType, taskId)} onToggleFavorite={onToggleFavorite} />;
+        }
+
+        return <AddMealButton onClick={() => handleAddMealClick(day, mealType)} />;
+    };
+
+
     return (
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-text-primary font-heading">Your Meal Plan</h1>
-                <Button onClick={onGeneratePlan} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center">
-                    {isLoading ? 'Generating...' : 'Generate New Week (Dinners)'}
+                <Button onClick={() => onGenerateWeek(currentWeekStart)} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center">
+                    {isLoading ? 'Generating...' : 'Generate Week'}
                 </Button>
             </div>
             
@@ -250,7 +300,6 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                 </div>
             </div>
 
-
             {mealPlan.length === 0 && !isLoading && (
                 <div className="text-center py-20 bg-background-secondary rounded-lg shadow-sm">
                     <Icon name="calendar" className="mx-auto w-12 h-12 text-neutral-medium/60" />
@@ -269,62 +318,34 @@ export const MealPlan: React.FC<MealPlanProps> = ({ mealPlan, onGeneratePlan, on
                     <div>Dinner</div>
                 </div>
                 <div className="space-y-2">
-                    {days.map(day => {
-                        const mealsForDay = getMealsForDate(day, mealPlan);
-                        return (
-                            <div key={day.toISOString()} className="grid grid-cols-[10rem_repeat(4,1fr)] gap-x-4 items-stretch rounded-lg bg-background-secondary/40 p-2 min-h-[160px]">
-                                <div className="font-semibold font-heading flex items-center justify-start p-2">{day.toLocaleDateString('en-US', { weekday: 'long' })}</div>
-                                {MEAL_TYPES_ORDER.map(mealType => {
-                                    const mealItem = mealsForDay[mealType];
-                                    return (
-                                        <div key={mealType} className="py-1">
-                                            {mealItem && mealItem.recipe ? (
-                                                <MealCard 
-                                                    item={mealItem} 
-                                                    onToggleTask={(taskId) => onToggleTask(mealItem.date, mealItem.mealType, taskId)} 
-                                                    onToggleFavorite={onToggleFavorite} 
-                                                />
-                                            ) : (
-                                                <AddMealButton onClick={() => handleAddMealClick(day, mealType)} />
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        );
-                    })}
+                    {days.map(day => (
+                        <div key={day.toISOString()} className="grid grid-cols-[10rem_repeat(4,1fr)] gap-x-4 items-stretch rounded-lg bg-background-secondary/40 p-2 min-h-[160px]">
+                            <div className="font-semibold font-heading flex items-center justify-start p-2">{day.toLocaleDateString('en-US', { weekday: 'long' })}</div>
+                            {MEAL_TYPES_ORDER.map(mealType => (
+                                <div key={mealType} className="py-1">
+                                    {renderMealSlot(day, mealType)}
+                                </div>
+                            ))}
+                        </div>
+                    ))}
                 </div>
             </div>
 
             {/* Mobile Layout */}
             <div className="md:hidden space-y-6">
-                {days.map(day => {
-                    const mealsForDay = getMealsForDate(day, mealPlan);
-                    return (
-                        <div key={day.toISOString()}>
-                            <h3 className="font-semibold font-heading mb-3">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
-                            <div className="flex overflow-x-auto space-x-4 pb-2 -mx-4 px-4">
-                                {MEAL_TYPES_ORDER.map(mealType => {
-                                    const mealItem = mealsForDay[mealType];
-                                    return (
-                                        <div key={mealType} className="w-64 flex-shrink-0">
-                                            <h4 className="text-xs font-bold uppercase text-text-secondary mb-1">{mealType}</h4>
-                                            {mealItem && mealItem.recipe ? (
-                                                <MealCard 
-                                                    item={mealItem} 
-                                                    onToggleTask={(taskId) => onToggleTask(mealItem.date, mealItem.mealType, taskId)} 
-                                                    onToggleFavorite={onToggleFavorite} 
-                                                />
-                                            ) : (
-                                                <AddMealButton onClick={() => handleAddMealClick(day, mealType)} />
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                {days.map(day => (
+                    <div key={day.toISOString()}>
+                        <h3 className="font-semibold font-heading mb-3">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
+                        <div className="flex overflow-x-auto space-x-4 pb-2 -mx-4 px-4">
+                            {MEAL_TYPES_ORDER.map(mealType => (
+                                <div key={mealType} className="w-64 flex-shrink-0">
+                                    <h4 className="text-xs font-bold uppercase text-text-secondary mb-1">{mealType}</h4>
+                                    {renderMealSlot(day, mealType)}
+                                </div>
+                            ))}
                         </div>
-                    );
-                })}
+                    </div>
+                ))}
             </div>
 
              {selectedDay && selectedMealType && (

@@ -100,6 +100,53 @@ export const generateMealPlan = async (preferences: DietaryPreferences, pantry: 
     }
 };
 
+export const generateSingleMeal = async (
+    preferences: DietaryPreferences,
+    pantry: Ingredient[],
+    energyLevel: EnergyLevel,
+    mealType: string,
+    cookingMethod: string,
+    timeAvailable: string
+): Promise<Recipe> => {
+    try {
+        const availablePantryItems = pantry.filter(i => i.inStock);
+        const prompt = `
+            Generate a single recipe for a user with ADHD.
+
+            **Constraints:**
+            - User's Energy Level: '${energyLevel}'. Adapt the recipe's complexity accordingly.
+            - Meal Type: '${mealType}'.
+            - Available Cooking Method: '${cookingMethod}'. If 'Any', you can choose the most suitable one from the user's available equipment.
+            - Time Available: '${timeAvailable}'. The recipe's totalTimeMinutes should not exceed this, unless it's 'No Limit'.
+            - Available Equipment: ${preferences.equipment.join(', ')}.
+            - Dietary Restrictions: Do NOT include ${preferences.globalRestrictions.join(', ')}.
+            - User Preferences: Try to include ${preferences.weeklyCustomizations.join(', ')}.
+            - Preferred Cuisines: ${preferences.cuisinePreferences.join(', ')}.
+            - Pantry Items: Prioritize using these ingredients: ${availablePantryItems.map(i => i.name).join('\n')}.
+
+            The goal is a simple, easy-to-follow recipe. Break down preparation into small, manageable 'prepSteps'.
+            Return the response as a single JSON object.
+        `;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: recipeSchema,
+            },
+        });
+
+        const jsonText = response.text.trim();
+        // The API might still return an array with one item, so we handle both cases.
+        const result = JSON.parse(jsonText);
+        return Array.isArray(result) ? result[0] : result;
+    } catch (error) {
+        console.error("Error generating single meal:", error);
+        throw new Error("Failed to generate a meal. The AI might be busy, please try again.");
+    }
+};
+
 export const analyzeFridgeImage = async (base64Image: string, mimeType: string, preferences: DietaryPreferences): Promise<string> => {
     try {
         const imagePart = {

@@ -250,7 +250,14 @@ export default function App() {
     const renderView = () => {
         switch (currentView) {
             case View.Dashboard:
-                return <Dashboard setCurrentView={setCurrentView} mealPlan={mealPlan} energyLevel={energyLevel} setEnergyLevel={setEnergyLevel} />;
+                return <Dashboard 
+                    setCurrentView={setCurrentView} 
+                    mealPlan={mealPlan} 
+                    energyLevel={energyLevel} 
+                    setEnergyLevel={setEnergyLevel}
+                    preferences={preferences}
+                    pantryItems={pantryItems}
+                />;
             case View.MealPlan:
                 return <MealPlan mealPlan={mealPlan} onGeneratePlan={handleGeneratePlan} onToggleTask={handleToggleTask} onToggleFavorite={handleToggleFavorite} isLoading={isLoading} />;
             case View.Cookbook:
@@ -271,7 +278,14 @@ export default function App() {
             case View.FridgeRescue:
                 return <FridgeRescue preferences={preferences} />;
             default:
-                return <Dashboard setCurrentView={setCurrentView} mealPlan={mealPlan} energyLevel={energyLevel} setEnergyLevel={setEnergyLevel} />;
+                return <Dashboard 
+                    setCurrentView={setCurrentView} 
+                    mealPlan={mealPlan} 
+                    energyLevel={energyLevel} 
+                    setEnergyLevel={setEnergyLevel}
+                    preferences={preferences}
+                    pantryItems={pantryItems}
+                />;
         }
     };
 

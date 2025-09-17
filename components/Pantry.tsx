@@ -164,13 +164,23 @@ const PantryCategory: React.FC<{
 export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDeleteItem, onToggleStock, onUpdateItem }) => {
     const [showForm, setShowForm] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+
+    const filteredItems = useMemo(() => {
+        if (!searchTerm) {
+            return pantryItems;
+        }
+        return pantryItems.filter(item =>
+            item.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [pantryItems, searchTerm]);
 
     const groupedItems = useMemo(() => {
-        return pantryItems.reduce((acc, item) => {
+        return filteredItems.reduce((acc, item) => {
             (acc[item.category] = acc[item.category] || []).push(item);
             return acc;
         }, {} as Record<string, Ingredient[]>);
-    }, [pantryItems]);
+    }, [filteredItems]);
 
 
     return (
@@ -180,33 +190,57 @@ export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDelete
                     <h1 className="text-3xl font-bold text-text-primary font-heading">Digital Pantry</h1>
                     <p className="mt-1 text-text-secondary">Check off what you have at home.</p>
                 </div>
-                <Button onClick={() => { setShowForm(true); setEditingItemId(null); }} className="mt-4 sm:mt-0">
-                    <Icon name="plus" className="-ml-1 mr-2 h-5 w-5" />
-                    Add Item
-                </Button>
+                <div className="flex items-center gap-4 mt-4 sm:mt-0">
+                    <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg className="h-5 w-5 text-neutral-medium" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <input
+                            type="text"
+                            id="search-pantry"
+                            className="block w-full pl-10 pr-3 py-2 border border-neutral-medium/30 rounded-md leading-5 bg-background-primary text-text-primary placeholder:text-text-secondary/70 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+                            placeholder="Search items..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                    <Button onClick={() => { setShowForm(true); setEditingItemId(null); }} className="flex-shrink-0">
+                        <Icon name="plus" className="-ml-1 mr-2 h-5 w-5" />
+                        Add Item
+                    </Button>
+                </div>
             </div>
 
             {showForm && <NewItemForm onAddItem={onAddItem} closeForm={() => setShowForm(false)} />}
 
             {pantryItems.length > 0 ? (
-                <div className="space-y-4">
-                    {PANTRY_CATEGORIES.map(category => {
-                        const items = groupedItems[category] || [];
-                        if (items.length === 0) return null;
-                        return (
-                            <PantryCategory
-                                key={category}
-                                category={category}
-                                items={items}
-                                onToggleStock={onToggleStock}
-                                onDeleteItem={onDeleteItem}
-                                onUpdateItem={onUpdateItem}
-                                editingItemId={editingItemId}
-                                setEditingItemId={setEditingItemId}
-                            />
-                        );
-                    })}
-                </div>
+                filteredItems.length > 0 ? (
+                    <div className="space-y-4">
+                        {PANTRY_CATEGORIES.map(category => {
+                            const items = groupedItems[category] || [];
+                            if (items.length === 0) return null;
+                            return (
+                                <PantryCategory
+                                    key={category}
+                                    category={category}
+                                    items={items}
+                                    onToggleStock={onToggleStock}
+                                    onDeleteItem={onDeleteItem}
+                                    onUpdateItem={onUpdateItem}
+                                    editingItemId={editingItemId}
+                                    setEditingItemId={setEditingItemId}
+                                />
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center py-20 bg-background-secondary rounded-lg shadow-sm">
+                        <h3 className="mt-2 text-lg font-medium text-text-primary font-heading">No items found</h3>
+                        <p className="mt-1 text-sm text-text-secondary">Try a different search term.</p>
+                    </div>
+                )
             ) : (
                 <div className="text-center py-20 bg-background-secondary rounded-lg shadow-sm">
                     <Icon name="pantry" className="mx-auto w-12 h-12 text-neutral-medium/60" />

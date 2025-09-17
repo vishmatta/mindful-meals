@@ -53,6 +53,10 @@ const RecipeCard: React.FC<{ recipe: Recipe; onToggleFavorite: (recipeId: string
     );
 };
 
+const capitalize = (s: string) => {
+    if (!s) return '';
+    return s.charAt(0).toUpperCase() + s.slice(1);
+};
 
 export const Cookbook: React.FC<CookbookProps> = ({ cookbook, onToggleFavorite }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -107,7 +111,7 @@ export const Cookbook: React.FC<CookbookProps> = ({ cookbook, onToggleFavorite }
                         onChange={(e) => setCuisineFilter(e.target.value)}
                     >
                         {uniqueCuisines.map(cuisine => (
-                            <option key={cuisine} value={cuisine} className="capitalize">{cuisine === 'all' ? 'All Cuisines' : cuisine}</option>
+                            <option key={cuisine} value={cuisine}>{cuisine === 'all' ? 'All Cuisines' : capitalize(cuisine)}</option>
                         ))}
                     </select>
                 </div>

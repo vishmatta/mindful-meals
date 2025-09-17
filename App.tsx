@@ -38,6 +38,24 @@ export default function App() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme');
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+            setTheme(savedTheme);
+        } else if (prefersDark) {
+            setTheme('dark');
+        }
+    }, []);
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
 
     const handleGeneratePlan = async () => {
         setIsLoading(true);
@@ -249,7 +267,7 @@ export default function App() {
                     storeOptions={preferences.shoppingStores}
                 />;
             case View.Preferences:
-                return <Preferences preferences={preferences} onSave={setPreferences} />;
+                return <Preferences preferences={preferences} onSave={setPreferences} theme={theme} onThemeChange={setTheme} />;
             case View.FridgeRescue:
                 return <FridgeRescue preferences={preferences} />;
             default:

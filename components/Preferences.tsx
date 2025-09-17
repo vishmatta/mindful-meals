@@ -6,6 +6,8 @@ import { Icon } from './common/Icon';
 interface PreferencesProps {
     preferences: DietaryPreferences;
     onSave: (newPreferences: DietaryPreferences) => void;
+    theme: 'light' | 'dark';
+    onThemeChange: (theme: 'light' | 'dark') => void;
 }
 
 const Chip: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemove }) => (
@@ -58,7 +60,7 @@ const ListEditor: React.FC<{ title: string; items: string[]; setItems: (items: s
     );
 };
 
-export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave }) => {
+export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, theme, onThemeChange }) => {
     const [global, setGlobal] = useState(preferences.globalRestrictions);
     const [weekly, setWeekly] = useState(preferences.weeklyCustomizations);
     const [equipment, setEquipment] = useState(preferences.equipment);
@@ -81,36 +83,76 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave })
             <p className="mt-1 text-text-secondary">Help the app understand your needs better.</p>
 
             <div className="mt-8 max-w-2xl space-y-8">
-                <ListEditor 
-                    title="Global Restrictions"
-                    items={global}
-                    setItems={setGlobal}
-                    placeholder="e.g., Peanuts, Dairy"
-                />
-                <ListEditor 
-                    title="Weekly Preferences"
-                    items={weekly}
-                    setItems={setWeekly}
-                    placeholder="e.g., Low carb, More chicken"
-                />
-                <ListEditor 
-                    title="Cuisine Preferences"
-                    items={cuisines}
-                    setItems={setCuisines}
-                    placeholder="e.g., Indian, Mexican, Thai"
-                />
-                <ListEditor 
-                    title="Kitchen Equipment"
-                    items={equipment}
-                    setItems={setEquipment}
-                    placeholder="e.g., Slow Cooker"
-                />
-                <ListEditor 
-                    title="Shopping Stores"
-                    items={stores}
-                    setItems={setStores}
-                    placeholder="e.g., Trader Joe's"
-                />
+                
+                {/* Appearance Section */}
+                <div>
+                    <h2 className="text-xl font-semibold text-text-primary font-heading">Appearance</h2>
+                    <div className="mt-4">
+                        <label className="block text-sm font-medium text-text-primary mb-2">Theme</label>
+                        <div className="flex rounded-md shadow-sm">
+                            <button
+                                type="button"
+                                onClick={() => onThemeChange('light')}
+                                className={`relative inline-flex items-center justify-center w-1/2 px-4 py-2 rounded-l-md border text-sm font-medium focus:z-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
+                                    theme === 'light'
+                                        ? 'bg-primary border-primary text-white'
+                                        : 'bg-background-secondary border-neutral-medium/30 text-text-secondary hover:bg-neutral-light/70'
+                                }`}
+                            >
+                                Light
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onThemeChange('dark')}
+                                className={`-ml-px relative inline-flex items-center justify-center w-1/2 px-4 py-2 rounded-r-md border text-sm font-medium focus:z-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
+                                    theme === 'dark'
+                                        ? 'bg-primary border-primary text-white'
+                                        : 'bg-background-secondary border-neutral-medium/30 text-text-secondary hover:bg-neutral-light/70'
+                                }`}
+                            >
+                                Dark
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Meal & Shopping Section */}
+                <div className="border-t border-neutral-medium/20 pt-8">
+                    <h2 className="text-xl font-semibold text-text-primary font-heading">Meal & Shopping</h2>
+                    <div className="mt-4 space-y-8">
+                        <ListEditor 
+                            title="Global Restrictions"
+                            items={global}
+                            setItems={setGlobal}
+                            placeholder="e.g., Peanuts, Dairy"
+                        />
+                        <ListEditor 
+                            title="Weekly Preferences"
+                            items={weekly}
+                            setItems={setWeekly}
+                            placeholder="e.g., Low carb, More chicken"
+                        />
+                        <ListEditor 
+                            title="Cuisine Preferences"
+                            items={cuisines}
+                            setItems={setCuisines}
+                            placeholder="e.g., Indian, Mexican, Thai"
+                        />
+                        <ListEditor 
+                            title="Kitchen Equipment"
+                            items={equipment}
+                            setItems={setEquipment}
+                            placeholder="e.g., Slow Cooker"
+                        />
+                        <ListEditor 
+                            title="Shopping Stores"
+                            items={stores}
+                            setItems={setStores}
+                            placeholder="e.g., Trader Joe's"
+                        />
+                    </div>
+                </div>
+
                  <div>
                     <Button onClick={handleSave}>Save Preferences</Button>
                 </div>

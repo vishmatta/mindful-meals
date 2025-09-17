@@ -9,12 +9,52 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --color-primary: 107 155 127;
+        --color-secondary: 123 167 188;
+        --color-background-primary: 253 252 248;
+        --color-background-secondary: 245 245 243;
+        --color-neutral-light: 245 245 243;
+        --color-neutral-medium: 138 138 134;
+        --color-functional-success: 91 138 107;
+        --color-functional-warning: 230 169 104;
+        --color-functional-danger: 214 123 123;
+        --color-functional-info: 244 208 111;
+        --color-text-primary: 47 47 47;
+        --color-text-secondary: 95 95 95;
+        --color-energy-full-power: 74 155 99;
+        --color-energy-cruising: 123 167 188;
+        --color-energy-low-battery: 230 169 104;
+        --color-energy-sos: 214 123 123;
+      }
+      .dark {
+        --color-primary: 141 181 160;
+        --color-secondary: 146 189 212;
+        --color-background-primary: 26 27 30;
+        --color-background-secondary: 37 38 41;
+        --color-neutral-light: 47 48 51;
+        --color-neutral-medium: 58 59 62;
+        --color-functional-success: 123 175 138;
+        --color-functional-warning: 242 185 122;
+        --color-functional-danger: 225 153 153;
+        --color-functional-info: 247 220 132;
+        --color-text-primary: 240 240 240;
+        --color-text-secondary: 184 184 184;
+        --color-energy-full-power: 92 174 117;
+        --color-energy-cruising: 146 189 212;
+        --color-energy-low-battery: 242 185 122;
+        --color-energy-sos: 225 153 153;
+      }
       body {
         font-family: 'Inter', sans-serif;
+        background-color: rgb(var(--color-background-primary));
+        color: rgb(var(--color-text-primary));
+        transition: background-color 0.3s ease, color 0.3s ease;
       }
     </style>
   <script>
       tailwind.config = {
+        darkMode: 'class',
         theme: {
           extend: {
             fontFamily: {
@@ -22,31 +62,31 @@
               heading: ['Poppins', 'sans-serif'],
             },
             colors: {
-              primary: '#6B9B7F',
-              secondary: '#7BA7BC',
+              primary: 'rgb(var(--color-primary) / <alpha-value>)',
+              secondary: 'rgb(var(--color-secondary) / <alpha-value>)',
               background: {
-                primary: '#FDFCF8',
-                secondary: '#F5F5F3',
+                primary: 'rgb(var(--color-background-primary) / <alpha-value>)',
+                secondary: 'rgb(var(--color-background-secondary) / <alpha-value>)',
               },
               neutral: {
-                light: '#F5F5F3',
-                medium: '#8A8A86',
+                light: 'rgb(var(--color-neutral-light) / <alpha-value>)',
+                medium: 'rgb(var(--color-neutral-medium) / <alpha-value>)',
               },
               functional: {
-                success: '#5B8A6B',
-                warning: '#E6A968', // Gentle Orange
-                danger: '#D67B7B',  // Soft Red
-                info: '#F4D06F',    // Energy Yellow
+                success: 'rgb(var(--color-functional-success) / <alpha-value>)',
+                warning: 'rgb(var(--color-functional-warning) / <alpha-value>)',
+                danger: 'rgb(var(--color-functional-danger) / <alpha-value>)',
+                info: 'rgb(var(--color-functional-info) / <alpha-value>)',
               },
               text: {
-                primary: '#2F2F2F',    // Dark Charcoal
-                secondary: '#5F5F5F', // Medium Charcoal
+                primary: 'rgb(var(--color-text-primary) / <alpha-value>)',
+                secondary: 'rgb(var(--color-text-secondary) / <alpha-value>)',
               },
               energy: {
-                'full-power': '#4A9B63',
-                'cruising': '#7BA7BC',
-                'low-battery': '#E6A968',
-                'sos': '#D67B7B',
+                'full-power': 'rgb(var(--color-energy-full-power) / <alpha-value>)',
+                'cruising': 'rgb(var(--color-energy-cruising) / <alpha-value>)',
+                'low-battery': 'rgb(var(--color-energy-low-battery) / <alpha-value>)',
+                'sos': 'rgb(var(--color-energy-sos) / <alpha-value>)',
               },
             },
           },

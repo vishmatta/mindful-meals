@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
-import { DietaryPreferences, Ingredient, Recipe, EnergyLevel } from '../types';
+import { DietaryPreferences, Ingredient, Recipe, EnergyLevel, ScannedItem } from '../types';
+import { PANTRY_CATEGORIES } from "../constants";
 
 // Fix: Initialize GoogleGenAI with API_KEY from environment variables directly as per guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -61,6 +62,17 @@ const fullDayMealSchema = {
         dinner: recipeSchema,
     },
     required: ["breakfast", "lunch", "snack", "dinner"],
+};
+
+const receiptItemSchema = {
+    type: Type.OBJECT,
+    properties: {
+        name: { type: Type.STRING, description: "The full name of the grocery item." },
+        quantity: { type: Type.NUMBER, description: "The quantity purchased. Default to 1 if not specified." },
+        unit: { type: Type.STRING, description: "The unit of measurement (e.g., 'lbs', 'oz', 'each'). Default to 'each' if not specified." },
+        category: { type: Type.STRING, description: `The best pantry category for this item. Must be one of: ${PANTRY_CATEGORIES.join(', ')}` },
+    },
+    required: ["name", "quantity", "unit", "category"],
 };
 
 
@@ -376,5 +388,42 @@ export const analyzeFridgeImage = async (base64Image: string, mimeType: string, 
     } catch (error) {
         console.error("Error analyzing fridge image:", error);
         throw new Error("Failed to analyze image. Please try again.");
+    }
+};
+
+export const scanReceipt = async (base64Image: string, mimeType: string): Promise<Omit<ScannedItem, 'isChecked'>[]> => {
+    try {
+        const imagePart = {
+            inlineData: { data: base64Image, mimeType },
+        };
+        const textPart = {
+            text: `
+                Analyze this image of a grocery receipt. Identify all the food and drink items suitable for a home pantry.
+                Ignore non-food items, taxes, totals, and store information.
+                For each item, determine its name, quantity, unit of measurement (like 'lbs', 'oz', or 'each'), and assign it to the most logical pantry category.
+                
+                The valid pantry categories are: ${PANTRY_CATEGORIES.join(', ')}.
+                
+                Return the result as a JSON array of objects.
+            `,
+        };
+
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: receiptItemSchema,
+                },
+            }
+        });
+
+        const jsonText = response.text.trim();
+        return JSON.parse(jsonText);
+    } catch (error) {
+        console.error("Error scanning receipt:", error);
+        throw new Error("Failed to read the receipt. The image might be blurry or the format is not recognized. Please try again.");
     }
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, DietaryPreferences, Ingredient, MealPlanItem, Recipe, PrepStep, ShoppingListItem, EnergyLevel } from './types';
+import { View, DietaryPreferences, Ingredient, MealPlanItem, Recipe, PrepStep, ShoppingListItem, EnergyLevel, ScannedItem } from './types';
 import { NAV_ITEMS, INITIAL_PANTRY, INITIAL_PREFERENCES, INITIAL_MEAL_PLAN } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { MealPlan } from './components/MealPlan';
@@ -359,6 +359,35 @@ export default function App() {
             )
         );
     };
+
+    const handleBatchUpdatePantry = (scannedItems: ScannedItem[]) => {
+        setPantryItems(currentPantry => {
+            const pantryMap = new Map(currentPantry.map(item => [item.name.toLowerCase(), item]));
+            const newPantry = [...currentPantry];
+
+            scannedItems.forEach(scannedItem => {
+                const existingItem = pantryMap.get(scannedItem.name.toLowerCase());
+                if (existingItem) {
+                    // Item exists, just mark it as in stock
+                    const index = newPantry.findIndex(p => p.id === existingItem.id);
+                    if (index !== -1 && !newPantry[index].inStock) {
+                        newPantry[index] = { ...newPantry[index], inStock: true };
+                    }
+                } else {
+                    // New item, add it to the pantry
+                    const newItem: Ingredient = {
+                        id: `scan-${new Date().getTime()}-${scannedItem.name.replace(/\s+/g, '-')}`,
+                        name: capitalize(scannedItem.name),
+                        category: scannedItem.category,
+                        inStock: true,
+                    };
+                    newPantry.push(newItem);
+                }
+            });
+
+            return newPantry.sort((a, b) => a.name.localeCompare(b.name));
+        });
+    };
     
     const handleToggleTask = (mealDate: string, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', taskId: string) => {
         setMealPlan(currentPlan =>
@@ -485,7 +514,14 @@ export default function App() {
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;
             case View.Pantry:
-                return <Pantry pantryItems={pantryItems} onAddItem={handleAddItemToPantry} onDeleteItem={handleDeleteItemFromPantry} onToggleStock={handleTogglePantryItem} onUpdateItem={handleUpdatePantryItem} />;
+                return <Pantry 
+                    pantryItems={pantryItems} 
+                    onAddItem={handleAddItemToPantry} 
+                    onDeleteItem={handleDeleteItemFromPantry} 
+                    onToggleStock={handleTogglePantryItem} 
+                    onUpdateItem={handleUpdatePantryItem}
+                    onBatchUpdate={handleBatchUpdatePantry}
+                />;
             case View.ShoppingList:
                 return <ShoppingList
                     items={shoppingList}

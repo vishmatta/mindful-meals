@@ -71,3 +71,12 @@ export interface ShoppingListItem {
     isChecked: boolean;
     isOptional: boolean;
 }
+
+export interface ScannedItem {
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  // For the review UI
+  isChecked: boolean;
+}

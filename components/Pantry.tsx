@@ -1,8 +1,10 @@
-import React, { useState, useMemo } from 'react';
-import { Ingredient } from '../types';
+import React, { useState, useMemo, useRef } from 'react';
+import { Ingredient, ScannedItem } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 import { PANTRY_CATEGORIES } from '../constants';
+import { scanReceipt } from '../services/geminiService';
+import { Modal } from './common/Modal';
 
 interface PantryProps {
     pantryItems: Ingredient[];
@@ -10,7 +12,20 @@ interface PantryProps {
     onDeleteItem: (id: string) => void;
     onToggleStock: (id: string) => void;
     onUpdateItem: (id: string, updates: { name: string; category: string }) => void;
+    onBatchUpdate: (items: ScannedItem[]) => void;
 }
+
+const fileToGenerativePart = (file: File): Promise<{ base64: string; mimeType: string }> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = (reader.result as string).split(',')[1];
+      resolve({ base64, mimeType: file.type });
+    };
+    reader.readAsDataURL(file);
+  });
+};
+
 
 const NewItemForm: React.FC<{ onAddItem: (item: { name: string, category: string }) => void; closeForm: () => void }> = ({ onAddItem, closeForm }) => {
     const [name, setName] = useState('');
@@ -171,11 +186,93 @@ const PantryCategory: React.FC<{
     );
 };
 
+const ReviewScannedItemsModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    initialItems: Omit<ScannedItem, 'isChecked'>[];
+    onConfirm: (finalItems: ScannedItem[]) => void;
+}> = ({ isOpen, onClose, initialItems, onConfirm }) => {
+    const [reviewedItems, setReviewedItems] = useState<ScannedItem[]>([]);
 
-export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDeleteItem, onToggleStock, onUpdateItem }) => {
+    React.useEffect(() => {
+        if (initialItems) {
+            setReviewedItems(initialItems.map(item => ({ ...item, isChecked: true })));
+        }
+    }, [initialItems]);
+
+    const handleItemChange = (index: number, field: keyof ScannedItem, value: any) => {
+        const newItems = [...reviewedItems];
+        (newItems[index] as any)[field] = value;
+        setReviewedItems(newItems);
+    };
+    
+    const handleConfirm = () => {
+        onConfirm(reviewedItems.filter(item => item.isChecked));
+        onClose();
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title="Review Scanned Items">
+            <p className="text-sm text-text-secondary mb-4">Review the items found on your receipt. Uncheck any you don't want to add, and make corrections as needed.</p>
+            <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
+                {reviewedItems.map((item, index) => (
+                    <div key={index} className="grid grid-cols-[auto_1fr_1fr] sm:grid-cols-[auto_1fr_1fr_1fr] gap-2 items-center p-2 bg-background-secondary rounded-lg">
+                        <input
+                            type="checkbox"
+                            checked={item.isChecked}
+                            onChange={(e) => handleItemChange(index, 'isChecked', e.target.checked)}
+                            className="h-5 w-5 rounded border-neutral-medium/50 text-primary focus:ring-primary"
+                        />
+                        <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleItemChange(index, 'name', e.target.value)}
+                            className="text-sm rounded-md border-neutral-medium/30 bg-background-primary"
+                        />
+                        <select
+                            value={item.category}
+                            onChange={(e) => handleItemChange(index, 'category', e.target.value)}
+                            className="text-sm rounded-md border-neutral-medium/30 bg-background-primary"
+                        >
+                            {PANTRY_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                        </select>
+                        <div className="hidden sm:flex items-center gap-1">
+                            <input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => handleItemChange(index, 'quantity', Number(e.target.value))}
+                                className="w-16 text-sm rounded-md border-neutral-medium/30 bg-background-primary"
+                            />
+                            <input
+                                type="text"
+                                value={item.unit}
+                                onChange={(e) => handleItemChange(index, 'unit', e.target.value)}
+                                placeholder="unit"
+                                className="w-20 text-sm rounded-md border-neutral-medium/30 bg-background-primary"
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+             <div className="flex justify-end gap-2 pt-6 mt-4 border-t border-neutral-medium/20">
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                <Button onClick={handleConfirm}>Add Checked Items</Button>
+            </div>
+        </Modal>
+    );
+};
+
+export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDeleteItem, onToggleStock, onUpdateItem, onBatchUpdate }) => {
     const [showForm, setShowForm] = useState(false);
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // State for receipt scanning
+    const [isScanning, setIsScanning] = useState(false);
+    const [scanError, setScanError] = useState<string | null>(null);
+    const [scannedItems, setScannedItems] = useState<Omit<ScannedItem, 'isChecked'>[]>([]);
+    const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
 
     const filteredItems = useMemo(() => {
         if (!searchTerm) {
@@ -193,9 +290,34 @@ export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDelete
         }, {} as Record<string, Ingredient[]>);
     }, [filteredItems]);
 
+    const handleScanClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setIsScanning(true);
+        setScanError(null);
+        
+        try {
+            const { base64, mimeType } = await fileToGenerativePart(file);
+            const result = await scanReceipt(base64, mimeType);
+            setScannedItems(result);
+            setIsReviewModalOpen(true);
+        } catch (err) {
+            setScanError(err instanceof Error ? err.message : 'An unknown error occurred.');
+        } finally {
+            setIsScanning(false);
+            // Reset file input value to allow re-uploading the same file
+            if(fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div className="p-4 sm:p-6 lg:p-8 relative min-h-screen">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                 <div className="hidden md:block">
                     <h1 className="text-3xl font-bold text-text-primary font-heading">Digital Pantry</h1>
@@ -224,11 +346,17 @@ export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDelete
                 </div>
             </div>
 
+            {scanError && (
+                <div className="mb-4 p-3 bg-functional-danger/20 text-functional-danger rounded-md text-sm flex justify-between items-center">
+                    <span>{scanError}</span>
+                    <button onClick={() => setScanError(null)}><Icon name="x" className="w-4 h-4" /></button>
+                </div>
+            )}
             {showForm && <NewItemForm onAddItem={onAddItem} closeForm={() => setShowForm(false)} />}
 
             {pantryItems.length > 0 ? (
                 filteredItems.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-4 pb-24">
                         {PANTRY_CATEGORIES.map(category => {
                             const items = groupedItems[category] || [];
                             if (items.length === 0) return null;
@@ -259,6 +387,24 @@ export const Pantry: React.FC<PantryProps> = ({ pantryItems, onAddItem, onDelete
                     <p className="mt-1 text-sm text-text-secondary">Add some items to get started!</p>
                 </div>
             )}
+            
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
+
+            <button
+                onClick={handleScanClick}
+                disabled={isScanning}
+                className="fixed bottom-24 md:bottom-6 right-6 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary/90 transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-wait"
+                aria-label="Scan Receipt"
+            >
+                {isScanning ? <Icon name="loading" className="w-7 h-7 animate-spin" /> : <Icon name="camera" className="w-7 h-7" />}
+            </button>
+            
+            <ReviewScannedItemsModal 
+                isOpen={isReviewModalOpen}
+                onClose={() => setIsReviewModalOpen(false)}
+                initialItems={scannedItems}
+                onConfirm={onBatchUpdate}
+            />
         </div>
     );
 };

@@ -22,11 +22,26 @@ export interface Ingredient {
   inStock: boolean;
 }
 
+export type MealPlanningMode = 'variety' | 'batch';
+
+export interface MealPlanPreference {
+  mode: MealPlanningMode;
+  batchMeals: number; // Number of different recipes for batch prep, 1-4
+}
+
+export interface MealPlanningPreferences {
+  breakfast: MealPlanPreference;
+  lunch: MealPlanPreference;
+  snack: MealPlanPreference;
+  dinner: MealPlanPreference;
+}
+
 export interface DietaryPreferences {
   globalRestrictions: string[];
   equipment: string[];
   cuisinePreferences: string[];
   shoppingStores: string[];
+  mealPlanning: MealPlanningPreferences;
 }
 
 export interface PrepStep {

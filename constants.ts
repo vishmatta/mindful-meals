@@ -36,6 +36,12 @@ export const INITIAL_PREFERENCES: DietaryPreferences = {
   equipment: ['Air Fryer', 'Oven', 'Stovetop', 'Microwave'],
   cuisinePreferences: [],
   shoppingStores: ["Costco", "HEB", "Randall's", "Amazon", "Target", "Indian Store", "Other"],
+  mealPlanning: {
+    breakfast: { mode: 'variety', batchMeals: 1 },
+    lunch: { mode: 'batch', batchMeals: 2 },
+    snack: { mode: 'variety', batchMeals: 1 },
+    dinner: { mode: 'batch', batchMeals: 2 },
+  }
 };
 
 export const INITIAL_PANTRY: Ingredient[] = [

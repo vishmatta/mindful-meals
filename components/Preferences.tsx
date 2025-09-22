@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { DietaryPreferences } from '../types';
+import React from 'react';
+import { DietaryPreferences, MealPlanningMode, MealPlanningPreferences } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 
@@ -20,7 +20,7 @@ const Chip: React.FC<{ label: string; onRemove: () => void }> = ({ label, onRemo
 );
 
 const ListEditor: React.FC<{ title: string; items: string[]; setItems: (items: string[]) => void; placeholder: string; }> = ({ title, items, setItems, placeholder }) => {
-    const [inputValue, setInputValue] = useState('');
+    const [inputValue, setInputValue] = React.useState('');
     
     const handleAdd = () => {
         if (inputValue && !items.includes(inputValue)) {
@@ -61,17 +61,25 @@ const ListEditor: React.FC<{ title: string; items: string[]; setItems: (items: s
 };
 
 export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, theme, onThemeChange }) => {
-    const [global, setGlobal] = useState(preferences.globalRestrictions);
-    const [equipment, setEquipment] = useState(preferences.equipment);
-    const [cuisines, setCuisines] = useState(preferences.cuisinePreferences);
-    const [stores, setStores] = useState(preferences.shoppingStores);
 
-    const handleSave = () => {
-        onSave({ 
-            globalRestrictions: global, 
-            equipment, 
-            cuisinePreferences: cuisines,
-            shoppingStores: stores,
+    const handleListUpdate = (key: 'globalRestrictions' | 'equipment' | 'cuisinePreferences' | 'shoppingStores', newItems: string[]) => {
+        onSave({ ...preferences, [key]: newItems });
+    };
+
+    const handleMealPlanningChange = (
+        mealType: keyof MealPlanningPreferences,
+        field: 'mode' | 'batchMeals',
+        value: MealPlanningMode | number
+    ) => {
+        onSave({
+            ...preferences,
+            mealPlanning: {
+                ...preferences.mealPlanning,
+                [mealType]: {
+                    ...preferences.mealPlanning[mealType],
+                    [field]: value,
+                },
+            },
         });
     };
 
@@ -117,39 +125,100 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, t
                     </div>
                 </div>
 
+                {/* Meal Planning Style Section */}
+                <div className="border-t border-neutral-medium/20 pt-8">
+                    <h2 className="text-xl font-semibold text-text-primary font-heading">Meal Planning Style</h2>
+                    <p className="mt-1 text-sm text-text-secondary">Choose between daily variety or batch prepping for the week.</p>
+                    <div className="mt-4 space-y-8">
+                        {(Object.keys(preferences.mealPlanning) as Array<keyof MealPlanningPreferences>).map((mealType) => {
+                            const prefs = preferences.mealPlanning[mealType];
+                            return (
+                                <div key={mealType}>
+                                    <label className="block text-base font-medium text-text-primary capitalize">{mealType}</label>
+                                    <div className="mt-2 flex rounded-md shadow-sm w-full sm:w-2/3">
+                                        <button
+                                            type="button"
+                                            onClick={() => handleMealPlanningChange(mealType, 'mode', 'variety')}
+                                            className={`relative inline-flex items-center justify-center w-1/2 px-4 py-2 rounded-l-md border text-sm font-medium focus:z-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
+                                                prefs.mode === 'variety'
+                                                    ? 'bg-primary border-primary text-white'
+                                                    : 'bg-background-secondary border-neutral-medium/30 text-text-secondary hover:bg-neutral-light/70'
+                                            }`}
+                                        >
+                                            Variety
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleMealPlanningChange(mealType, 'mode', 'batch')}
+                                            className={`-ml-px relative inline-flex items-center justify-center w-1/2 px-4 py-2 rounded-r-md border text-sm font-medium focus:z-10 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition-colors ${
+                                                prefs.mode === 'batch'
+                                                    ? 'bg-primary border-primary text-white'
+                                                    : 'bg-background-secondary border-neutral-medium/30 text-text-secondary hover:bg-neutral-light/70'
+                                            }`}
+                                        >
+                                            Batch
+                                        </button>
+                                    </div>
+                                    {prefs.mode === 'batch' && (
+                                        <div className="mt-4 pl-1">
+                                            <div className="flex items-center space-x-2">
+                                                <label htmlFor={`${mealType}-meals`} className="block text-sm font-medium text-text-secondary">
+                                                    Number of different meals: <span className="font-semibold text-primary">{prefs.batchMeals}</span>
+                                                </label>
+                                                <div 
+                                                    className="relative flex items-center justify-center h-5 w-5 rounded-full border border-neutral-medium text-neutral-medium text-xs font-semibold cursor-help"
+                                                    title="Choose how many different recipes to generate and rotate through for the week. 1 = same meal daily, 2-4 = rotating meals."
+                                                >
+                                                    ?
+                                                </div>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                id={`${mealType}-meals`}
+                                                min="1"
+                                                max="4"
+                                                step="1"
+                                                value={prefs.batchMeals}
+                                                onChange={e => handleMealPlanningChange(mealType, 'batchMeals', Number(e.target.value))}
+                                                className="w-full h-2 bg-neutral-light rounded-lg appearance-none cursor-pointer mt-2 accent-primary"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+
                 {/* Meal & Shopping Section */}
                 <div className="border-t border-neutral-medium/20 pt-8">
-                    <h2 className="text-xl font-semibold text-text-primary font-heading">Meal & Shopping</h2>
+                    <h2 className="text-xl font-semibold text-text-primary font-heading">Food & Shopping</h2>
                     <div className="mt-4 space-y-8">
                         <ListEditor 
                             title="Global Restrictions"
-                            items={global}
-                            setItems={setGlobal}
+                            items={preferences.globalRestrictions}
+                            setItems={(newItems) => handleListUpdate('globalRestrictions', newItems)}
                             placeholder="e.g., Peanuts, Dairy"
                         />
                         <ListEditor 
                             title="Cuisine Preferences"
-                            items={cuisines}
-                            setItems={setCuisines}
+                            items={preferences.cuisinePreferences}
+                            setItems={(newItems) => handleListUpdate('cuisinePreferences', newItems)}
                             placeholder="e.g., Indian, Mexican, Thai"
                         />
                         <ListEditor 
                             title="Kitchen Equipment"
-                            items={equipment}
-                            setItems={setEquipment}
+                            items={preferences.equipment}
+                            setItems={(newItems) => handleListUpdate('equipment', newItems)}
                             placeholder="e.g., Slow Cooker"
                         />
                         <ListEditor 
                             title="Shopping Stores"
-                            items={stores}
-                            setItems={setStores}
+                            items={preferences.shoppingStores}
+                            setItems={(newItems) => handleListUpdate('shoppingStores', newItems)}
                             placeholder="e.g., Trader Joe's"
                         />
                     </div>
-                </div>
-
-                 <div>
-                    <Button onClick={handleSave}>Save Preferences</Button>
                 </div>
             </div>
         </div>

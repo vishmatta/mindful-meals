@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, DietaryPreferences, Ingredient, MealPlanItem, Recipe, PrepStep, ShoppingListItem, EnergyLevel, ScannedItem } from './types';
+import { View, DietaryPreferences, Ingredient, MealPlanItem, Recipe, PrepStep, ShoppingListItem, EnergyLevel, ScannedItem, MealPlanningPreferences } from './types';
 import { NAV_ITEMS, INITIAL_PANTRY, INITIAL_PREFERENCES, INITIAL_MEAL_PLAN } from './constants';
 import { Dashboard } from './components/Dashboard';
 import { MealPlan } from './components/MealPlan';
@@ -54,6 +54,39 @@ const createMealPlanItem = (recipe: Recipe, date: Date, mealType: 'Breakfast' | 
     };
 };
 
+const distributeRecipes = (recipes: Recipe[], days: Date[], mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'): MealPlanItem[] => {
+    if (!recipes.length || !days.length) return [];
+    
+    const recipeCount = recipes.length;
+    const dayCount = days.length;
+    const assignments: Recipe[] = [];
+
+    // Default distribution patterns
+    if (recipeCount === 1) { // A,A,A,A,A,A,A
+        for (let i = 0; i < dayCount; i++) assignments.push(recipes[0]);
+    } else if (recipeCount === 2) { // A,A,A,A,B,B,B (for 7 days)
+        const splitPoint = Math.ceil(dayCount / 2);
+        for (let i = 0; i < dayCount; i++) {
+            assignments.push(i < splitPoint ? recipes[0] : recipes[1]);
+        }
+    } else if (recipeCount === 3) { // A,A,A,B,B,C,C (for 7 days)
+        const split1 = Math.ceil(dayCount / 3);
+        const split2 = split1 + Math.ceil((dayCount - split1) / 2);
+        for (let i = 0; i < dayCount; i++) {
+            if (i < split1) assignments.push(recipes[0]);
+            else if (i < split2) assignments.push(recipes[1]);
+            else assignments.push(recipes[2]);
+        }
+    } else { // A,B,C,D,A,B,C...
+        for (let i = 0; i < dayCount; i++) {
+            assignments.push(recipes[i % recipeCount]);
+        }
+    }
+
+    return days.map((day, index) => createMealPlanItem(assignments[index], day, mealType));
+};
+
+
 const MOBILE_NAV_VIEWS: View[] = [View.Dashboard, View.MealPlan, View.Pantry, View.ShoppingList, View.Cookbook];
 
 export default function App() {
@@ -90,63 +123,78 @@ export default function App() {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    const handleGenerateMealsForDays = async (daysToGenerate: Date[]) => {
+    const handleGenerateWeek = async (daysToGenerate: Date[]) => {
         if (daysToGenerate.length === 0) return;
-
-        const allSlots = daysToGenerate.flatMap(d => 
-            ['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(mt => `${d.toISOString().split('T')[0]}-${mt}`)
-        );
-
+    
         setIsLoading(true);
         setError(null);
-        setLoadingSlots(current => [...new Set([...current, ...allSlots])]);
-        setFailedSlots(current => {
-            const next = { ...current };
-            allSlots.forEach(s => delete next[s]);
-            return next;
+        setFailedSlots({});
+    
+        const mealTypes: ('Breakfast' | 'Lunch' | 'Snack' | 'Dinner')[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+        
+        const allSlots = daysToGenerate.flatMap(d => mealTypes.map(mt => `${d.toISOString().split('T')[0]}-${mt}`));
+        setLoadingSlots(allSlots);
+        
+        const generationPromises = mealTypes.map(mealType => {
+            const mealTypeKey = mealType.toLowerCase() as keyof MealPlanningPreferences;
+            const planningPref = preferences.mealPlanning[mealTypeKey];
+
+            if (!planningPref) {
+                return Promise.reject(new Error(`Planning preferences for ${mealType} are not set.`));
+            }
+
+            const isBatch = planningPref.mode === 'batch';
+            const count = isBatch ? planningPref.batchMeals : daysToGenerate.length;
+            
+            return generateRecipes(preferences, pantryItems, energyLevel, mealType, count, weeklyPreferences, isBatch)
+                .then(recipes => ({ mealType, recipes, mode: planningPref.mode }));
         });
-
+    
         try {
-            const promises = daysToGenerate.map(date => generateDayMeals(preferences, pantryItems, energyLevel, weeklyPreferences));
-            const results = await Promise.allSettled(promises);
-
-            const newItems: MealPlanItem[] = [];
+            const results = await Promise.allSettled(generationPromises);
+            
+            const newMealItems: MealPlanItem[] = [];
             const newFailedSlots: Record<string, string> = {};
-
+    
             results.forEach((result, index) => {
-                const day = daysToGenerate[index];
+                const mealType = mealTypes[index];
                 if (result.status === 'fulfilled') {
-                    const dayMeals = result.value;
-                    newItems.push(createMealPlanItem(dayMeals.breakfast, day, 'Breakfast'));
-                    newItems.push(createMealPlanItem(dayMeals.lunch, day, 'Lunch'));
-                    newItems.push(createMealPlanItem(dayMeals.snack, day, 'Snack'));
-                    newItems.push(createMealPlanItem(dayMeals.dinner, day, 'Dinner'));
+                    const { recipes, mode } = result.value;
+                    if (mode === 'batch') {
+                        newMealItems.push(...distributeRecipes(recipes, daysToGenerate, mealType));
+                    } else { // variety
+                        if (recipes.length >= daysToGenerate.length) {
+                            daysToGenerate.forEach((day, i) => {
+                                newMealItems.push(createMealPlanItem(recipes[i], day, mealType));
+                            });
+                        } else {
+                            throw new Error(`AI returned too few recipes for ${mealType}.`);
+                        }
+                    }
                 } else {
-                    const dateString = day.toISOString().split('T')[0];
                     const errorMessage = result.reason instanceof Error ? result.reason.message : 'Generation failed';
-                    ['Breakfast', 'Lunch', 'Snack', 'Dinner'].forEach(mt => {
-                        newFailedSlots[`${dateString}-${mt}`] = errorMessage;
+                    daysToGenerate.forEach(day => {
+                        newFailedSlots[`${day.toISOString().split('T')[0]}-${mealType}`] = errorMessage;
                     });
                 }
             });
-            
-            if (Object.keys(newFailedSlots).length > 0) {
-                 setError("Some meals could not be generated. Please try again.");
-            }
-
+    
             setMealPlan(current => {
                 const datesToGenerateSet = new Set(daysToGenerate.map(d => d.toISOString().split('T')[0]));
                 const otherItems = current.filter(item => !datesToGenerateSet.has(item.date));
-                return [...otherItems, ...newItems].sort((a, b) => a.date.localeCompare(b.date));
+                return [...otherItems, ...newMealItems].sort((a, b) => a.date.localeCompare(b.date));
             });
-            
-            setFailedSlots(current => ({ ...current, ...newFailedSlots }));
-
+    
+            if (Object.keys(newFailedSlots).length > 0) {
+                setError("Some meals could not be generated. Please try again.");
+            }
+            setFailedSlots(newFailedSlots);
+    
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An unknown error occurred');
         } finally {
             setIsLoading(false);
-            setLoadingSlots(current => current.filter(s => !allSlots.includes(s)));
+            setLoadingSlots([]);
         }
     };
     
@@ -169,7 +217,6 @@ export default function App() {
         setIsLoading(true);
         setError(null);
         
-        // Determine slots to update
         let targetSlots: { date: Date; mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack' }[] = [];
         if (scope === 'This Meal Only') {
             targetSlots = [{ date: day, mealType }];
@@ -273,6 +320,36 @@ export default function App() {
             setIsLoading(false);
             setLoadingSlots(current => current.filter(s => !slots.includes(s)));
         }
+    };
+
+    const handleUpdateBatchAssignments = (
+        recipeId: string,
+        mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+        newAssignedDates: string[], // YYYY-MM-DD strings
+        weekStart: Date
+    ) => {
+        const recipeToAssign = mealPlan.find(i => i.recipe?.id === recipeId)?.recipe || cookbook.find(r => r.id === recipeId);
+        if (!recipeToAssign) return;
+    
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const weekDateStrings = new Set<string>();
+        for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+            weekDateStrings.add(d.toISOString().split('T')[0]);
+        }
+    
+        setMealPlan(currentPlan => {
+            const planWithRemovals = currentPlan.filter(item => 
+                !(weekDateStrings.has(item.date) && item.mealType === mealType && item.recipe?.id === recipeId)
+            );
+    
+            const newAssignments = newAssignedDates.map(dateString => {
+                const date = new Date(dateString + 'T00:00:00');
+                return createMealPlanItem(recipeToAssign, date, mealType);
+            });
+            
+            return [...planWithRemovals, ...newAssignments].sort((a, b) => a.date.localeCompare(b.date));
+        });
     };
     
     const calculateShoppingList = useCallback(() => {
@@ -497,7 +574,8 @@ export default function App() {
             case View.MealPlan:
                 return <MealPlan 
                     mealPlan={mealPlan} 
-                    onGenerateMealsForDays={handleGenerateMealsForDays} 
+                    preferences={preferences}
+                    onGenerateWeek={handleGenerateWeek} 
                     onToggleTask={handleToggleTask} 
                     onToggleFavorite={handleToggleFavorite} 
                     isLoading={isLoading}
@@ -509,6 +587,7 @@ export default function App() {
                     onClearFailedSlot={handleClearFailedSlot}
                     weeklyPreferences={weeklyPreferences}
                     setWeeklyPreferences={setWeeklyPreferences}
+                    onUpdateBatchAssignments={handleUpdateBatchAssignments}
                 />;
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;

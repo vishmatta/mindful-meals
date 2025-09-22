@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MealPlanItem, Recipe } from '../types';
+import React, { useState, useEffect } from 'react';
+import { DietaryPreferences, MealPlanItem, Recipe, MealPlanningPreferences } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 import { ENERGY_LEVELS } from '../constants';
@@ -10,7 +10,8 @@ type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 interface MealPlanProps {
     mealPlan: MealPlanItem[];
-    onGenerateMealsForDays: (days: Date[]) => Promise<void>;
+    preferences: DietaryPreferences;
+    onGenerateWeek: (days: Date[]) => Promise<void>;
     onToggleTask: (mealDate: string, mealType: MealType, taskId: string) => void;
     onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
     isLoading: boolean;
@@ -29,29 +30,32 @@ interface MealPlanProps {
     onClearFailedSlot: (slotKey: string) => void;
     weeklyPreferences: string;
     setWeeklyPreferences: (prefs: string) => void;
+    onUpdateBatchAssignments: (recipeId: string, mealType: MealType, newDates: string[], weekStart: Date) => void;
 }
 
-const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
-    const { recipe, prepTasks } = item;
-    const [isExpanded, setIsExpanded] = useState(false);
-
-    if (!recipe) {
+const MealCard: React.FC<{
+    item: MealPlanItem;
+    onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
+    onClick: () => void;
+    isBatch: boolean;
+}> = ({ item, onToggleFavorite, onClick, isBatch }) => {
+    if (!item.recipe) {
         return (
             <div className="bg-background-secondary p-4 rounded-lg shadow-sm h-full flex flex-col justify-center items-center">
                 <p className="text-text-secondary">Rest Day / Eat Out</p>
             </div>
         );
     }
-    
+    const { recipe } = item;
     const energyConfig = ENERGY_LEVELS[recipe.energyLevel];
 
     return (
-        <div className="bg-background-secondary p-4 rounded-lg shadow-sm h-full flex flex-col">
+        <button onClick={onClick} className="bg-background-secondary p-4 rounded-lg shadow-sm h-full flex flex-col text-left w-full hover:shadow-md hover:border-primary border border-transparent transition-all">
             <div className="flex-grow">
                 <div className="flex justify-between items-start">
                     <h4 className="font-bold text-sm pr-2 font-heading">{recipe.name}</h4>
                     <button
-                        onClick={() => onToggleFavorite(recipe.id, item.date, item.mealType)}
+                        onClick={(e) => { e.stopPropagation(); onToggleFavorite(recipe.id, item.date, item.mealType); }}
                         className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex-shrink-0"
                         aria-label={recipe.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
                     >
@@ -59,51 +63,14 @@ const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) =>
                     </button>
                 </div>
                 <p className="text-xs text-text-secondary mt-1 line-clamp-2">{recipe.description}</p>
-                 <div className="mt-2 flex items-center flex-wrap gap-x-3 gap-y-1 text-xs">
+            </div>
+            <div className="mt-2 flex items-center flex-wrap gap-x-3 gap-y-1 text-xs">
+                {!isBatch && (
                     <span title={`Energy: ${energyConfig.label}`} className={`px-2 py-0.5 rounded-full text-white ${energyConfig.color}`}>{energyConfig.label}</span>
-                    <span className="text-text-secondary">{recipe.totalTimeMinutes} min</span>
-                </div>
+                )}
+                <span className="text-text-secondary">{recipe.totalTimeMinutes} min</span>
             </div>
-            <div className="mt-3">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="text-xs font-semibold text-primary hover:text-primary/80 flex items-center w-full justify-between">
-                    <span>Details</span>
-                    <Icon name="chevronDown" className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-                </button>
-            </div>
-            {isExpanded && (
-                 <div className="mt-3 space-y-3 text-xs border-t border-neutral-medium/20 pt-3">
-                    <p><b>Cleanup:</b> {recipe.cleanupLevel}</p>
-                    {recipe.cookingMethod && <p><b>Method:</b> {recipe.cookingMethod}</p>}
-                    <div>
-                        <h5 className="font-semibold mb-1">Prep Steps</h5>
-                        <ul className="space-y-2">
-                            {prepTasks.map(task => (
-                                <li key={task.id} className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id={`${item.date}-${item.mealType}-${task.id}`}
-                                        checked={task.completed}
-                                        onChange={() => onToggleTask(task.id)}
-                                        className="h-4 w-4 rounded border-neutral-medium/50 text-primary focus:ring-primary"
-                                    />
-                                    <label htmlFor={`${item.date}-${item.mealType}-${task.id}`} className={`ml-2 text-text-secondary ${task.completed ? 'line-through text-neutral-medium' : ''}`}>
-                                        {task.task} ({task.durationMinutes} min)
-                                    </label>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                    {recipe.substitutions && recipe.substitutions.length > 0 && (
-                        <div>
-                            <h5 className="font-semibold mt-2 mb-1">Substitutions</h5>
-                            <ul className="list-disc list-inside space-y-1 text-text-secondary">
-                                {recipe.substitutions.map((sub, i) => <li key={i}>{sub}</li>)}
-                            </ul>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
+        </button>
     );
 };
 
@@ -180,22 +147,137 @@ const AddMealButton: React.FC<{ onClick?: () => void }> = ({ onClick }) => (
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+const BatchMealRow: React.FC<{
+    mealType: MealType;
+    days: Date[];
+    mealPlan: MealPlanItem[];
+    onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
+    onOpenDetailModal: (recipe: Recipe, mealType: MealType) => void;
+}> = ({ mealType, days, mealPlan, onToggleFavorite, onOpenDetailModal }) => {
+    const relevantMeals = mealPlan.filter(item => 
+        item.mealType === mealType && 
+        days.some(d => d.toISOString().split('T')[0] === item.date)
+    );
+
+    if (relevantMeals.length === 0) {
+        return (
+            <div className="bg-background-primary rounded-lg text-text-secondary p-4 text-center italic">
+                No {mealType} meals planned for these days.
+            </div>
+        )
+    }
+
+    const recipesWithDays = new Map<string, { recipe: Recipe, dates: string[] }>();
+    relevantMeals.forEach(item => {
+        if (item.recipe) {
+            const entry = recipesWithDays.get(item.recipe.id) || { recipe: item.recipe, dates: [] };
+            const dayOfWeek = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+            if (!entry.dates.includes(dayOfWeek)) {
+                entry.dates.push(dayOfWeek);
+            }
+            recipesWithDays.set(item.recipe.id, entry);
+        }
+    });
+
+    const uniqueRecipes = Array.from(recipesWithDays.values());
+    
+    return (
+        <div className="bg-background-secondary p-4 rounded-lg">
+            <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
+            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${uniqueRecipes.length || 1} gap-4`}>
+                {uniqueRecipes.map(({ recipe, dates }) => (
+                    <button key={recipe.id} onClick={() => onOpenDetailModal(recipe, mealType)} className="bg-background-primary p-3 rounded-lg shadow-sm text-left hover:shadow-md hover:border-primary border border-transparent transition-all">
+                        <div className="flex justify-between items-start">
+                             <h4 className="font-bold text-sm pr-2 font-heading">{recipe.name}</h4>
+                            <div
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onToggleFavorite(recipe.id, relevantMeals.find(i => i.recipe?.id === recipe.id)!.date, mealType);
+                                }}
+                                className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex-shrink-0"
+                                aria-label="Toggle favorite"
+                            >
+                                <Icon name="heart" className={`w-5 h-5 ${recipe.isFavorite ? 'text-functional-danger fill-current' : ''}`} />
+                            </div>
+                        </div>
+                        <p className="text-xs text-text-secondary mt-1 line-clamp-2 flex-grow">{recipe.description}</p>
+                        <div className="mt-3 pt-3 border-t border-neutral-medium/20">
+                            <p className="text-xs font-semibold text-text-secondary">Assigned Days:</p>
+                            <p className="text-xs text-text-primary font-medium">{dates.join(', ')}</p>
+                        </div>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
+const VarietyMealRow: React.FC<{
+    mealType: MealType;
+    days: Date[];
+    renderMealSlot: (day: Date, mealType: MealType) => React.ReactNode;
+}> = ({ mealType, days, renderMealSlot }) => {
+    return (
+        <div className="bg-background-secondary p-4 rounded-lg">
+            <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
+            {/* Desktop */}
+            <div className="hidden md:grid grid-cols-7 gap-4">
+                {days.map(day => (
+                    <div key={day.toISOString()} className="flex flex-col items-center text-center">
+                        <p className="text-sm font-semibold mb-2">{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
+                        {renderMealSlot(day, mealType)}
+                    </div>
+                ))}
+            </div>
+            {/* Mobile */}
+            <div className="md:hidden space-y-4">
+                {days.map(day => (
+                     <div key={day.toISOString()}>
+                        <h4 className="font-semibold mb-2">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h4>
+                        {renderMealSlot(day, mealType)}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
+
 export const MealPlan: React.FC<MealPlanProps> = ({ 
-    mealPlan, onGenerateMealsForDays, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals,
-    loadingSlots, failedSlots, onClearFailedSlot, weeklyPreferences, setWeeklyPreferences
+    mealPlan, onGenerateWeek, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals,
+    loadingSlots, failedSlots, onClearFailedSlot, weeklyPreferences, setWeeklyPreferences, preferences, onUpdateBatchAssignments
 }) => {
     const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
     const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // 0=Mon, 1=Tue, etc.
 
-    // Modal state
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    // Modal state for adding a meal
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
     const [selectedMealType, setSelectedMealType] = useState<MealType | null>(null);
+    
+    // Modal state for viewing meal details
+    const [detailModalRecipe, setDetailModalRecipe] = useState<Recipe | null>(null);
+    const [detailModalMealType, setDetailModalMealType] = useState<MealType | null>(null);
+    const [batchDayAssignments, setBatchDayAssignments] = useState<string[]>([]);
+
 
     // Modal selection state
     const [scope, setScope] = useState<'This Meal Only' | 'All Meal Types' | 'Rest of Today'>('This Meal Only');
     const [cookingMethod, setCookingMethod] = useState('Any Method');
     const [timeAvailable, setTimeAvailable] = useState('No Limit');
+
+    useEffect(() => {
+        if (detailModalRecipe && detailModalMealType) {
+            const mealTypeKey = detailModalMealType.toLowerCase() as keyof MealPlanningPreferences;
+            if (preferences.mealPlanning[mealTypeKey]?.mode === 'batch') {
+                const assignedDates = mealPlan
+                    .filter(item => item.mealType === detailModalMealType && item.recipe?.id === detailModalRecipe.id)
+                    .map(item => item.date);
+                setBatchDayAssignments(assignedDates);
+            }
+        }
+    }, [detailModalRecipe, detailModalMealType, mealPlan, preferences.mealPlanning]);
     
     const handlePreviousWeek = () => {
         const newDate = new Date(currentWeekStart);
@@ -212,17 +294,39 @@ export const MealPlan: React.FC<MealPlanProps> = ({
     const handleAddMealClick = (day: Date, mealType: MealType) => {
         setSelectedDay(day);
         setSelectedMealType(mealType);
-        // Reset selections to default
         setScope('This Meal Only');
         setCookingMethod('Any Method');
         setTimeAvailable('No Limit');
-        setIsModalOpen(true);
+        setIsAddModalOpen(true);
     };
 
     const handleGenerateTargeted = async () => {
         if (selectedDay && selectedMealType) {
             await onGenerateTargetedMeals(selectedDay, selectedMealType, scope, cookingMethod, timeAvailable, currentWeekStart);
-            setIsModalOpen(false);
+            setIsAddModalOpen(false);
+        }
+    };
+    
+    const handleOpenDetailModal = (recipe: Recipe, mealType: MealType) => {
+        setDetailModalRecipe(recipe);
+        setDetailModalMealType(mealType);
+    };
+    
+    const handleCloseDetailModal = () => {
+        setDetailModalRecipe(null);
+        setDetailModalMealType(null);
+    };
+    
+    const handleBatchDayToggle = (dateString: string) => {
+        setBatchDayAssignments(prev => 
+            prev.includes(dateString) ? prev.filter(d => d !== dateString) : [...prev, dateString]
+        );
+    };
+
+    const handleSaveBatchAssignments = () => {
+        if (detailModalRecipe && detailModalMealType) {
+            onUpdateBatchAssignments(detailModalRecipe.id, detailModalMealType, batchDayAssignments, currentWeekStart);
+            handleCloseDetailModal();
         }
     };
 
@@ -238,7 +342,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({
             d.setDate(d.getDate() + dayIndex);
             return d;
         });
-        onGenerateMealsForDays(datesToGenerate);
+        onGenerateWeek(datesToGenerate);
     };
     
     const days = Array.from({ length: 7 }, (_, i) => {
@@ -249,7 +353,6 @@ export const MealPlan: React.FC<MealPlanProps> = ({
 
     const cookingMethodOptions = ['Any Method', 'Air Fryer', 'Stovetop', 'Oven', 'Microwave', 'Slow Cooker'];
     const timeAvailableOptions = ['No Limit', '15 minutes', '30 minutes', '1 hour'];
-    
     const scopeOptionLabels = selectedMealType ? ['This Meal Only', `All ${selectedMealType}s This Week`, "Rest of Today's Meals"] : [];
     
     const handleScopeSelect = (label: string) => {
@@ -273,7 +376,6 @@ export const MealPlan: React.FC<MealPlanProps> = ({
         if (loadingSlots.includes(slotKey)) {
             return <LoadingSlot />;
         }
-
         if (failedSlots[slotKey]) {
             return <ErrorSlot onRetry={() => { onClearFailedSlot(slotKey); handleAddMealClick(day, mealType); }} />;
         }
@@ -282,7 +384,12 @@ export const MealPlan: React.FC<MealPlanProps> = ({
         const mealItem = mealsForDay[mealType];
 
         if (mealItem && mealItem.recipe) {
-            return <MealCard item={mealItem} onToggleTask={(taskId) => onToggleTask(mealItem.date, mealItem.mealType, taskId)} onToggleFavorite={onToggleFavorite} />;
+            return <MealCard 
+                item={mealItem} 
+                onToggleFavorite={onToggleFavorite} 
+                onClick={() => handleOpenDetailModal(mealItem.recipe!, mealType)}
+                isBatch={false}
+            />;
         }
 
         return <AddMealButton onClick={() => handleAddMealClick(day, mealType)} />;
@@ -363,79 +470,119 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                 </div>
             )}
             
-            {/* Web Layout */}
-            <div className="hidden md:block">
-                <div className="grid grid-cols-[10rem_repeat(4,1fr)] gap-x-4 text-center font-semibold text-text-secondary mb-2 px-2">
-                    <div className="text-left">Day</div>
-                    <div>Breakfast</div>
-                    <div>Lunch</div>
-                    <div>Snack</div>
-                    <div>Dinner</div>
-                </div>
-                <div className="space-y-2">
-                    {days.map(day => (
-                        <div key={day.toISOString()} className="grid grid-cols-[10rem_repeat(4,1fr)] gap-x-4 items-stretch rounded-lg bg-background-secondary/40 p-2 min-h-[160px]">
-                            <div className="font-semibold font-heading flex items-center justify-start p-2">{day.toLocaleDateString('en-US', { weekday: 'long' })}</div>
-                            {MEAL_TYPES_ORDER.map(mealType => (
-                                <div key={mealType} className="py-1">
-                                    {renderMealSlot(day, mealType)}
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div>
+            <div className="space-y-8">
+                {MEAL_TYPES_ORDER.map(mealType => {
+                     const mealTypeKey = mealType.toLowerCase() as keyof MealPlanningPreferences;
+                     const planningPref = preferences.mealPlanning[mealTypeKey];
+
+                     if (!planningPref) {
+                         return (
+                            <div key={mealType} className="bg-background-secondary p-4 rounded-lg">
+                                <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
+                                <p className="text-functional-danger">Planning preferences for this meal type are missing.</p>
+                            </div>
+                         )
+                     }
+                     if (loadingSlots.some(slot => slot.endsWith(mealType))) {
+                         return (
+                            <div key={mealType} className="bg-background-secondary p-4 rounded-lg">
+                                <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
+                                <div className="flex items-center justify-center p-8"> <Icon name="loading" className="w-10 h-10 text-primary animate-spin" /> </div>
+                            </div>
+                         );
+                     }
+                    if (failedSlots[`${days[0].toISOString().split('T')[0]}-${mealType}`]) {
+                        return (
+                            <div key={mealType} className="bg-background-secondary p-4 rounded-lg">
+                                <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
+                                <div className="flex items-center justify-center p-8 text-center text-functional-danger"> Could not generate {mealType.toLowerCase()} meals. </div>
+                            </div>
+                        )
+                    }
+
+                    if (planningPref.mode === 'batch') {
+                        return <BatchMealRow key={mealType} mealType={mealType} days={days} mealPlan={mealPlan} onToggleFavorite={onToggleFavorite} onOpenDetailModal={handleOpenDetailModal} />;
+                    } else { // variety
+                        return <VarietyMealRow key={mealType} mealType={mealType} days={days} renderMealSlot={renderMealSlot} />;
+                    }
+                })}
             </div>
 
-            {/* Mobile Layout */}
-            <div className="md:hidden space-y-6">
-                {days.map(day => (
-                    <div key={day.toISOString()}>
-                        <h3 className="font-semibold font-heading mb-3">{day.toLocaleDateString('en-US', { weekday: 'long' })}</h3>
-                        <div className="flex overflow-x-auto space-x-4 pb-2 -mx-4 px-4">
-                            {MEAL_TYPES_ORDER.map(mealType => (
-                                <div key={mealType} className="w-64 flex-shrink-0">
-                                    <h4 className="text-xs font-bold uppercase text-text-secondary mb-1">{mealType}</h4>
-                                    {renderMealSlot(day, mealType)}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-             {selectedDay && selectedMealType && (
+            {selectedDay && selectedMealType && (
                 <Modal 
-                    isOpen={isModalOpen} 
-                    onClose={() => setIsModalOpen(false)} 
+                    isOpen={isAddModalOpen} 
+                    onClose={() => setIsAddModalOpen(false)} 
                     title={`Generate ${selectedMealType} for ${selectedDay.toLocaleDateString('en-US', { weekday: 'long' })}`}
                 >
                     <div className="space-y-6">
-                        <SelectionOptionGroup 
-                            title="1. Scope" 
-                            options={scopeOptionLabels} 
-                            selected={getSelectedScopeLabel()} 
-                            onSelect={handleScopeSelect}
-                        />
-                        <SelectionOptionGroup 
-                            title="2. Cooking Method" 
-                            options={cookingMethodOptions} 
-                            selected={cookingMethod} 
-                            onSelect={setCookingMethod} 
-                        />
-                        <SelectionOptionGroup 
-                            title="3. Time Available" 
-                            options={timeAvailableOptions} 
-                            selected={timeAvailable} 
-                            onSelect={setTimeAvailable} 
-                        />
+                        <SelectionOptionGroup title="1. Scope" options={scopeOptionLabels} selected={getSelectedScopeLabel()} onSelect={handleScopeSelect}/>
+                        <SelectionOptionGroup title="2. Cooking Method" options={cookingMethodOptions} selected={cookingMethod} onSelect={setCookingMethod} />
+                        <SelectionOptionGroup title="3. Time Available" options={timeAvailableOptions} selected={timeAvailable} onSelect={setTimeAvailable} />
                          <div className="flex justify-end pt-4 mt-2">
-                            <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="mr-2">Cancel</Button>
-                            <Button onClick={handleGenerateTargeted} isLoading={isLoading}>
-                                {isLoading ? "Generating..." : "Generate Meal"}
-                            </Button>
+                            <Button variant="secondary" onClick={() => setIsAddModalOpen(false)} className="mr-2">Cancel</Button>
+                            <Button onClick={handleGenerateTargeted} isLoading={isLoading}> {isLoading ? "Generating..." : "Generate Meal"} </Button>
                         </div>
                     </div>
                 </Modal>
+            )}
+
+            {detailModalRecipe && detailModalMealType && (
+                 <Modal isOpen={true} onClose={handleCloseDetailModal} title={detailModalRecipe.name}>
+                    <div className="space-y-4">
+                        <p className="text-text-secondary">{detailModalRecipe.description}</p>
+                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
+                            <span title={`Energy: ${ENERGY_LEVELS[detailModalRecipe.energyLevel].label}`} className={`px-2 py-1 rounded-full text-white ${ENERGY_LEVELS[detailModalRecipe.energyLevel].color}`}>{ENERGY_LEVELS[detailModalRecipe.energyLevel].label}</span>
+                            <span className="text-text-secondary">Cleanup: {detailModalRecipe.cleanupLevel}</span>
+                            <span className="text-text-secondary">{detailModalRecipe.totalTimeMinutes} min total</span>
+                            {detailModalRecipe.cookingMethod && <span className="text-text-secondary">Method: {detailModalRecipe.cookingMethod}</span>}
+                        </div>
+                        <div>
+                            <h4 className="font-semibold text-sm mb-2 font-heading">Ingredients</h4>
+                            <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">
+                                {detailModalRecipe.ingredients.map((ing, i) => <li key={i}>{ing.quantity} {ing.unit} {ing.name}</li>)}
+                            </ul>
+                        </div>
+                         <div>
+                            <h4 className="font-semibold text-sm mt-4 mb-2 font-heading">Instructions</h4>
+                            <ol className="list-decimal list-inside text-sm space-y-2 text-text-secondary">
+                                {detailModalRecipe.prepSteps.map((step, i) => <li key={i}>{step.task} ({step.durationMinutes} min)</li>)}
+                            </ol>
+                        </div>
+                        {detailModalRecipe.substitutions && detailModalRecipe.substitutions.length > 0 && (
+                            <div>
+                                <h4 className="font-semibold text-sm mt-4 mb-2 font-heading">Substitutions</h4>
+                                <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">
+                                    {detailModalRecipe.substitutions.map((sub, i) => <li key={i}>{sub}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                        {preferences.mealPlanning[detailModalMealType.toLowerCase() as keyof MealPlanningPreferences]?.mode === 'batch' && (
+                            <div className="border-t border-neutral-medium/20 pt-4">
+                                <h4 className="font-semibold text-sm mb-3 font-heading">Assign to Days</h4>
+                                <div className="flex flex-wrap gap-2">
+                                    {days.map(day => {
+                                        const dateString = day.toISOString().split('T')[0];
+                                        const isChecked = batchDayAssignments.includes(dateString);
+                                        return (
+                                            <button
+                                                key={dateString}
+                                                onClick={() => handleBatchDayToggle(dateString)}
+                                                className={`px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors ${
+                                                    isChecked ? 'bg-primary border-primary text-white' : 'bg-background-secondary border-neutral-medium/30 text-text-primary hover:border-primary'
+                                                }`}
+                                            >
+                                                {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex justify-end pt-4 mt-2">
+                                    <Button onClick={handleSaveBatchAssignments}>Save Day Assignments</Button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                 </Modal>
             )}
         </div>
     );

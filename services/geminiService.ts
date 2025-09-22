@@ -193,18 +193,24 @@ export const generateRecipes = async (
     mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
     count: number,
     weeklyPreferences: string,
+    isBatch: boolean,
 ): Promise<Recipe[]> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
+        
+        const energyPrompt = isBatch
+            ? `IMPORTANT: The user's energy level for the meal prep day is '${energyLevel}'. Generate recipes that are suitable for batch preparation, considering this energy level for the overall prep session complexity. The individual meals can be simple to assemble later.`
+            : `IMPORTANT: The user's current energy level is '${energyLevel}'. Please create recipes that reflect this.
+              - For 'FULL_POWER', suggest more engaging or complex recipes.
+              - For 'CRUISING', provide standard recipes.
+              - For 'LOW_BATTERY', prioritize quick and simple meals.
+              - For 'SOS', the recipes must take less than 15 minutes and require minimal cleanup.`;
+
         const prompt = `
             Create ${count} unique ${mealType} recipe(s) for a user with ADHD.
             The goal is to minimize decision fatigue and overwhelm.
 
-            IMPORTANT: The user's current energy level is '${energyLevel}'. Please create recipes that reflect this.
-            - For 'FULL_POWER', suggest more engaging or complex recipes.
-            - For 'CRUISING', provide standard recipes.
-            - For 'LOW_BATTERY', prioritize quick and simple meals.
-            - For 'SOS', the recipes must take less than 15 minutes and require minimal cleanup.
+            ${energyPrompt}
             
             General rules:
             - Prioritize variety but keep ingredients simple.

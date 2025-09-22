@@ -24,7 +24,6 @@ export interface Ingredient {
 
 export interface DietaryPreferences {
   globalRestrictions: string[];
-  weeklyCustomizations: string[];
   equipment: string[];
   cuisinePreferences: string[];
   shoppingStores: string[];

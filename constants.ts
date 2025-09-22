@@ -33,7 +33,6 @@ export const PANTRY_CATEGORIES = [
 
 export const INITIAL_PREFERENCES: DietaryPreferences = {
   globalRestrictions: ['Beef', 'Pork'],
-  weeklyCustomizations: [],
   equipment: ['Air Fryer', 'Oven', 'Stovetop', 'Microwave'],
   cuisinePreferences: [],
   shoppingStores: ["Costco", "HEB", "Randall's", "Amazon", "Target", "Indian Store", "Other"],

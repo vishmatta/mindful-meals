@@ -15,6 +15,8 @@ interface DashboardProps {
     setEnergyLevel: (level: EnergyLevel) => void;
     preferences: DietaryPreferences;
     pantryItems: Ingredient[];
+    cookbook: Recipe[];
+    onToggleFavorite: (recipeId: string, mealDate?: any, mealType?: any, recipe?: Recipe) => void;
 }
 
 const EnergyButton: React.FC<{ level: EnergyLevel; selected: boolean; onClick: () => void }> = ({ level, selected, onClick }) => {
@@ -44,7 +46,7 @@ const getNextTask = (mealPlan: MealPlanItem[]) => {
     return null;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, energyLevel, setEnergyLevel, preferences, pantryItems }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, energyLevel, setEnergyLevel, preferences, pantryItems, cookbook, onToggleFavorite }) => {
     
     const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
     const [isResultModalOpen, setIsResultModalOpen] = useState(false);
@@ -55,6 +57,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
     const [mealType, setMealType] = useState('Any');
     const [cookingMethod, setCookingMethod] = useState('Any');
     const [timeAvailable, setTimeAvailable] = useState('No Limit');
+    const [customInstructions, setCustomInstructions] = useState('');
 
     const nextTask = getNextTask(mealPlan);
 
@@ -80,7 +83,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                 energyLevel,
                 mealType,
                 cookingMethod,
-                timeAvailable
+                timeAvailable,
+                customInstructions
             );
             setGeneratedRecipe(recipe);
             setIsSelectionModalOpen(false);
@@ -95,6 +99,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
     const mealTypeOptions = ['Any', 'Breakfast', 'Lunch', 'Dinner', 'Snack'];
     const cookingMethodOptions = ['Any', 'Air Fryer', 'Stovetop', 'Oven', 'Microwave', 'Slow Cooker'];
     const timeAvailableOptions = ['No Limit', '15 minutes', '30 minutes', '1 hour'];
+    
+    const isSavedInCookbook = generatedRecipe ? cookbook.some(r => r.id === generatedRecipe.id) : false;
 
     return (
         <div className="p-4 sm:p-6 lg:p-8 space-y-8">
@@ -157,10 +163,21 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
 
             <Modal isOpen={isSelectionModalOpen} onClose={() => setIsSelectionModalOpen(false)} title="Generate a Single Meal">
                 <div className="space-y-6">
-                    <p className="text-text-secondary">Your current energy is set to <span className="font-semibold text-primary">{ENERGY_LEVELS[energyLevel].label}</span>. We'll find a recipe that fits.</p>
+                    <p className="text-text-secondary">Your current energy is set to <span className={`font-semibold ${ENERGY_LEVELS[energyLevel].color.replace('bg-', 'text-')}`}>{ENERGY_LEVELS[energyLevel].label}</span>. We'll find a recipe that fits.</p>
                     <SelectionOptionGroup title="Meal Type" options={mealTypeOptions} selected={mealType} onSelect={setMealType} />
                     <SelectionOptionGroup title="Cooking Method" options={cookingMethodOptions} selected={cookingMethod} onSelect={setCookingMethod} />
                     <SelectionOptionGroup title="Time Available" options={timeAvailableOptions} selected={timeAvailable} onSelect={setTimeAvailable} />
+                    <div className="pt-2">
+                        <label htmlFor="custom-instructions" className="text-md font-semibold text-text-secondary mb-2 block">Custom Instructions (Optional)</label>
+                        <textarea
+                            id="custom-instructions"
+                            rows={2}
+                            value={customInstructions}
+                            onChange={(e) => setCustomInstructions(e.target.value)}
+                            placeholder="e.g., 'use up the leftover chicken', 'make it extra spicy'"
+                            className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
+                        />
+                    </div>
                     {generationError && <p className="text-functional-danger text-sm">{generationError}</p>}
                     <div className="flex justify-end pt-4">
                         <Button onClick={handleGenerateSingleMeal} isLoading={isGenerating}>
@@ -179,6 +196,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                             <span className="text-text-secondary">Cleanup: {generatedRecipe.cleanupLevel}</span>
                             <span className="text-text-secondary">{generatedRecipe.totalTimeMinutes} min total</span>
                             {generatedRecipe.cookingMethod && <span className="text-text-secondary">Method: {generatedRecipe.cookingMethod}</span>}
+                            <button
+                                onClick={() => onToggleFavorite(generatedRecipe.id, undefined, undefined, generatedRecipe)}
+                                className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex items-center text-xs font-semibold"
+                                aria-label={isSavedInCookbook ? 'Remove from favorites' : 'Add to favorites'}
+                            >
+                                <Icon name="heart" className={`w-4 h-4 mr-1 ${isSavedInCookbook ? 'text-functional-danger fill-current' : ''}`} />
+                                {isSavedInCookbook ? 'Saved' : 'Save'}
+                            </button>
                         </div>
                         <div>
                             <h4 className="font-semibold text-sm mb-2 font-heading">Ingredients</h4>

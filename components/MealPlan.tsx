@@ -10,7 +10,7 @@ type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 interface MealPlanProps {
     mealPlan: MealPlanItem[];
-    onGenerateWeek: (weekStart: Date) => Promise<void>;
+    onGenerateMealsForDays: (days: Date[]) => Promise<void>;
     onToggleTask: (mealDate: string, mealType: MealType, taskId: string) => void;
     onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
     isLoading: boolean;
@@ -27,6 +27,8 @@ interface MealPlanProps {
     loadingSlots: string[];
     failedSlots: Record<string, string>;
     onClearFailedSlot: (slotKey: string) => void;
+    weeklyPreferences: string;
+    setWeeklyPreferences: (prefs: string) => void;
 }
 
 const MealCard: React.FC<{ item: MealPlanItem; onToggleTask: (taskId: string) => void; onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void }> = ({ item, onToggleTask, onToggleFavorite }) => {
@@ -176,12 +178,14 @@ const AddMealButton: React.FC<{ onClick?: () => void }> = ({ onClick }) => (
     </button>
 );
 
+const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 export const MealPlan: React.FC<MealPlanProps> = ({ 
-    mealPlan, onGenerateWeek, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals,
-    loadingSlots, failedSlots, onClearFailedSlot
+    mealPlan, onGenerateMealsForDays, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals,
+    loadingSlots, failedSlots, onClearFailedSlot, weeklyPreferences, setWeeklyPreferences
 }) => {
     const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
+    const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // 0=Mon, 1=Tue, etc.
 
     // Modal state
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -215,11 +219,26 @@ export const MealPlan: React.FC<MealPlanProps> = ({
         setIsModalOpen(true);
     };
 
-    const handleGenerate = async () => {
+    const handleGenerateTargeted = async () => {
         if (selectedDay && selectedMealType) {
             await onGenerateTargetedMeals(selectedDay, selectedMealType, scope, cookingMethod, timeAvailable, currentWeekStart);
             setIsModalOpen(false);
         }
+    };
+
+    const handleToggleDay = (dayIndex: number) => {
+        setSelectedDays(prev => 
+            prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex].sort()
+        );
+    };
+    
+    const handleGenerate = () => {
+        const datesToGenerate = selectedDays.map(dayIndex => {
+            const d = new Date(currentWeekStart);
+            d.setDate(d.getDate() + dayIndex);
+            return d;
+        });
+        onGenerateMealsForDays(datesToGenerate);
     };
     
     const days = Array.from({ length: 7 }, (_, i) => {
@@ -274,8 +293,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-text-primary font-heading hidden md:block">Your Meal Plan</h1>
-                <Button onClick={() => onGenerateWeek(currentWeekStart)} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center w-full sm:w-auto">
-                    {isLoading ? 'Generating...' : 'Generate Week'}
+                <Button onClick={handleGenerate} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center w-full sm:w-auto" disabled={selectedDays.length === 0}>
+                    {isLoading ? 'Generating...' : `Generate for ${selectedDays.length} Day(s)`}
                 </Button>
             </div>
             
@@ -287,6 +306,42 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                 <Button variant="secondary" className="p-2" onClick={handleNextWeek} aria-label="Next week">
                     <Icon name="chevron-right" className="w-5 h-5" />
                 </Button>
+            </div>
+            
+            <div className="p-4 bg-background-secondary rounded-lg mb-8">
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-text-primary mb-2">
+                        Select Days to Generate
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                        {DAY_LABELS.map((label, index) => (
+                            <button
+                                key={index}
+                                onClick={() => handleToggleDay(index)}
+                                className={`w-10 h-10 text-sm font-bold rounded-full border transition-colors ${
+                                    selectedDays.includes(index)
+                                        ? 'bg-primary border-primary text-white'
+                                        : 'bg-background-primary border-neutral-medium/30 text-text-primary hover:border-primary'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+                 <div className="border-t border-neutral-medium/20 pt-4">
+                    <label htmlFor="weekly-prefs" className="block text-sm font-medium text-text-primary mb-1">
+                        This Week's Preferences
+                    </label>
+                    <input
+                        type="text"
+                        id="weekly-prefs"
+                        value={weeklyPreferences}
+                        onChange={(e) => setWeeklyPreferences(e.target.value)}
+                        placeholder="e.g., low-carb, quick meals for weekdays..."
+                        className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
+                    />
+                </div>
             </div>
 
             <div className="p-4 bg-background-secondary rounded-lg mb-8">
@@ -375,7 +430,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                         />
                          <div className="flex justify-end pt-4 mt-2">
                             <Button variant="secondary" onClick={() => setIsModalOpen(false)} className="mr-2">Cancel</Button>
-                            <Button onClick={handleGenerate} isLoading={isLoading}>
+                            <Button onClick={handleGenerateTargeted} isLoading={isLoading}>
                                 {isLoading ? "Generating..." : "Generate Meal"}
                             </Button>
                         </div>

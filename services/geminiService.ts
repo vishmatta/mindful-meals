@@ -76,7 +76,7 @@ const receiptItemSchema = {
 };
 
 
-export const generateMealPlan = async (preferences: DietaryPreferences, pantry: Ingredient[], energyLevel: EnergyLevel): Promise<Recipe[]> => {
+export const generateMealPlan = async (preferences: DietaryPreferences, pantry: Ingredient[], energyLevel: EnergyLevel, weeklyPreferences: string): Promise<Recipe[]> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
         const prompt = `
@@ -97,7 +97,7 @@ export const generateMealPlan = async (preferences: DietaryPreferences, pantry: 
             - ${preferences.globalRestrictions.join(', ') || 'None'}
 
             This Week's Preferences (Try to incorporate these):
-            - ${preferences.weeklyCustomizations.join(', ') || 'None'}
+            - ${weeklyPreferences || 'None'}
             
             Preferred Cuisines (focus on these styles of food):
             - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
@@ -132,6 +132,7 @@ export const generateDayMeals = async (
     preferences: DietaryPreferences,
     pantry: Ingredient[],
     energyLevel: EnergyLevel,
+    weeklyPreferences: string,
 ): Promise<{ breakfast: Recipe; lunch: Recipe; snack: Recipe; dinner: Recipe; }> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
@@ -155,7 +156,7 @@ export const generateDayMeals = async (
             - ${preferences.globalRestrictions.join(', ') || 'None'}
 
             This Week's Preferences (Try to incorporate these):
-            - ${preferences.weeklyCustomizations.join(', ') || 'None'}
+            - ${weeklyPreferences || 'None'}
             
             Preferred Cuisines (focus on these styles of food):
             - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
@@ -190,7 +191,8 @@ export const generateRecipes = async (
     pantry: Ingredient[],
     energyLevel: EnergyLevel,
     mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
-    count: number
+    count: number,
+    weeklyPreferences: string,
 ): Promise<Recipe[]> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
@@ -213,7 +215,7 @@ export const generateRecipes = async (
             - ${preferences.globalRestrictions.join(', ') || 'None'}
 
             This Week's Preferences (Try to incorporate these):
-            - ${preferences.weeklyCustomizations.join(', ') || 'None'}
+            - ${weeklyPreferences || 'None'}
             
             Preferred Cuisines (focus on these styles of food):
             - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
@@ -252,6 +254,7 @@ export const generateTargetedRecipes = async (
     count: number,
     cookingMethod: string,
     timeAvailable: string,
+    weeklyPreferences: string,
 ): Promise<Recipe[]> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
@@ -286,7 +289,7 @@ export const generateTargetedRecipes = async (
             - ${preferences.globalRestrictions.join(', ') || 'None'}
 
             This Week's Preferences (Try to incorporate these):
-            - ${preferences.weeklyCustomizations.join(', ') || 'None'}
+            - ${weeklyPreferences || 'None'}
             
             Preferred Cuisines (focus on these styles of food):
             - ${preferences.cuisinePreferences.join(', ') || 'Any cuisine is fine'}
@@ -324,21 +327,22 @@ export const generateSingleMeal = async (
     energyLevel: EnergyLevel,
     mealType: string,
     cookingMethod: string,
-    timeAvailable: string
+    timeAvailable: string,
+    customInstructions: string,
 ): Promise<Recipe> => {
     try {
         const availablePantryItems = pantry.filter(i => i.inStock);
         const prompt = `
             Generate a single recipe for a user with ADHD.
 
-            **Constraints:**
+            **Constraints & Context:**
             - User's Energy Level: '${energyLevel}'. Adapt the recipe's complexity accordingly.
             - Meal Type: '${mealType}'.
             - Available Cooking Method: '${cookingMethod}'. If 'Any', you can choose the most suitable one from the user's available equipment.
             - Time Available: '${timeAvailable}'. The recipe's totalTimeMinutes should not exceed this, unless it's 'No Limit'.
+            - User Instructions: ${customInstructions || 'None'}.
             - Available Equipment: ${preferences.equipment.join(', ')}.
             - Dietary Restrictions: Do NOT include ${preferences.globalRestrictions.join(', ')}.
-            - User Preferences: Try to include ${preferences.weeklyCustomizations.join(', ')}.
             - Preferred Cuisines: ${preferences.cuisinePreferences.join(', ')}.
             - Pantry Items: Prioritize using these ingredients: ${availablePantryItems.map(i => i.name).join('\n')}.
 

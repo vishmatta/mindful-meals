@@ -62,7 +62,6 @@ const ListEditor: React.FC<{ title: string; items: string[]; setItems: (items: s
 
 export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, theme, onThemeChange }) => {
     const [global, setGlobal] = useState(preferences.globalRestrictions);
-    const [weekly, setWeekly] = useState(preferences.weeklyCustomizations);
     const [equipment, setEquipment] = useState(preferences.equipment);
     const [cuisines, setCuisines] = useState(preferences.cuisinePreferences);
     const [stores, setStores] = useState(preferences.shoppingStores);
@@ -70,7 +69,6 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, t
     const handleSave = () => {
         onSave({ 
             globalRestrictions: global, 
-            weeklyCustomizations: weekly, 
             equipment, 
             cuisinePreferences: cuisines,
             shoppingStores: stores,
@@ -128,12 +126,6 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, t
                             items={global}
                             setItems={setGlobal}
                             placeholder="e.g., Peanuts, Dairy"
-                        />
-                        <ListEditor 
-                            title="Weekly Preferences"
-                            items={weekly}
-                            setItems={setWeekly}
-                            placeholder="e.g., Low carb, More chicken"
                         />
                         <ListEditor 
                             title="Cuisine Preferences"

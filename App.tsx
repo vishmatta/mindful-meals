@@ -67,6 +67,7 @@ export default function App() {
     const [error, setError] = useState<string | null>(null);
     const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
+    const [weeklyPreferences, setWeeklyPreferences] = useState<string>('');
 
     // State for granular UI feedback during generation
     const [loadingSlots, setLoadingSlots] = useState<string[]>([]);
@@ -89,14 +90,10 @@ export default function App() {
         localStorage.setItem('theme', theme);
     }, [theme]);
 
-    const handleGenerateWeek = async (weekStart: Date) => {
-        const weekDates = Array.from({ length: 7 }, (_, i) => {
-            const d = new Date(weekStart);
-            d.setDate(d.getDate() + i);
-            return d;
-        });
+    const handleGenerateMealsForDays = async (daysToGenerate: Date[]) => {
+        if (daysToGenerate.length === 0) return;
 
-        const allSlots = weekDates.flatMap(d => 
+        const allSlots = daysToGenerate.flatMap(d => 
             ['Breakfast', 'Lunch', 'Snack', 'Dinner'].map(mt => `${d.toISOString().split('T')[0]}-${mt}`)
         );
 
@@ -110,14 +107,14 @@ export default function App() {
         });
 
         try {
-            const promises = weekDates.map(date => generateDayMeals(preferences, pantryItems, energyLevel));
+            const promises = daysToGenerate.map(date => generateDayMeals(preferences, pantryItems, energyLevel, weeklyPreferences));
             const results = await Promise.allSettled(promises);
 
             const newItems: MealPlanItem[] = [];
             const newFailedSlots: Record<string, string> = {};
 
             results.forEach((result, index) => {
-                const day = weekDates[index];
+                const day = daysToGenerate[index];
                 if (result.status === 'fulfilled') {
                     const dayMeals = result.value;
                     newItems.push(createMealPlanItem(dayMeals.breakfast, day, 'Breakfast'));
@@ -138,12 +135,8 @@ export default function App() {
             }
 
             setMealPlan(current => {
-                const weekStartString = weekStart.toISOString().split('T')[0];
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekEnd.getDate() + 6);
-                const weekEndString = weekEnd.toISOString().split('T')[0];
-
-                const otherItems = current.filter(item => item.date < weekStartString || item.date > weekEndString);
+                const datesToGenerateSet = new Set(daysToGenerate.map(d => d.toISOString().split('T')[0]));
+                const otherItems = current.filter(item => !datesToGenerateSet.has(item.date));
                 return [...otherItems, ...newItems].sort((a, b) => a.date.localeCompare(b.date));
             });
             
@@ -205,7 +198,7 @@ export default function App() {
         });
 
         try {
-            const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, targetSlots.length, cookingMethod, timeAvailable);
+            const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, targetSlots.length, cookingMethod, timeAvailable, weeklyPreferences);
             
             if (recipes.length !== targetSlots.length) {
                 throw new Error("Could not generate the requested number of meals.");
@@ -255,7 +248,7 @@ export default function App() {
         });
 
         try {
-            const dayMeals = await generateDayMeals(preferences, pantryItems, energyLevel);
+            const dayMeals = await generateDayMeals(preferences, pantryItems, energyLevel, weeklyPreferences);
     
             const newTodayItems: MealPlanItem[] = [
                 createMealPlanItem(dayMeals.breakfast, today, 'Breakfast'),
@@ -405,7 +398,7 @@ export default function App() {
         );
     };
 
-    const handleToggleFavorite = (recipeId: string, mealDate?: MealPlanItem['date'], mealType?: MealPlanItem['mealType']) => {
+    const handleToggleFavorite = (recipeId: string, mealDate?: MealPlanItem['date'], mealType?: MealPlanItem['mealType'], recipe?: Recipe) => {
         const isMealPlanToggle = !!(mealDate && mealType);
     
         if (isMealPlanToggle) {
@@ -439,13 +432,15 @@ export default function App() {
                 }
             }
         } else {
-            // Logic for a global favorite toggle from the Cookbook
+            // Logic for a global favorite toggle from the Cookbook or a newly generated meal
             const isCurrentlyFavorite = cookbook.some(r => r.id === recipeId);
             const isNowFavorite = !isCurrentlyFavorite;
     
             // Update cookbook first
             if (isNowFavorite) {
-                const recipeToAdd = mealPlan.find(i => i.recipe?.id === recipeId)?.recipe || cookbook.find(r => r.id === recipeId);
+                 const recipeToAdd = mealPlan.find(i => i.recipe?.id === recipeId)?.recipe 
+                                || cookbook.find(r => r.id === recipeId) 
+                                || recipe; // Use provided recipe if not found elsewhere
                 if (recipeToAdd && !cookbook.some(r => r.id === recipeId)) {
                      setCookbook(prev => [...prev, { ...recipeToAdd, isFavorite: true }]);
                 }
@@ -496,11 +491,13 @@ export default function App() {
                     setEnergyLevel={setEnergyLevel}
                     preferences={preferences}
                     pantryItems={pantryItems}
+                    cookbook={cookbook}
+                    onToggleFavorite={handleToggleFavorite}
                 />;
             case View.MealPlan:
                 return <MealPlan 
                     mealPlan={mealPlan} 
-                    onGenerateWeek={handleGenerateWeek} 
+                    onGenerateMealsForDays={handleGenerateMealsForDays} 
                     onToggleTask={handleToggleTask} 
                     onToggleFavorite={handleToggleFavorite} 
                     isLoading={isLoading}
@@ -510,6 +507,8 @@ export default function App() {
                     loadingSlots={loadingSlots}
                     failedSlots={failedSlots}
                     onClearFailedSlot={handleClearFailedSlot}
+                    weeklyPreferences={weeklyPreferences}
+                    setWeeklyPreferences={setWeeklyPreferences}
                 />;
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;
@@ -543,6 +542,8 @@ export default function App() {
                     setEnergyLevel={setEnergyLevel}
                     preferences={preferences}
                     pantryItems={pantryItems}
+                    cookbook={cookbook}
+                    onToggleFavorite={handleToggleFavorite}
                 />;
         }
     };

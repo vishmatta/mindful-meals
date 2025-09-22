@@ -9,7 +9,7 @@ import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
-import { generateMealPlan, generateRecipes, generateTargetedRecipes, generateDayMeals } from './services/geminiService';
+import { generateMealPlan, generateRecipes, generateTargetedRecipes, generateDayMeals, generateSingleMeal } from './services/geminiService';
 
 const NavLink: React.FC<{ item: { view: View; label: string; icon: string; }; active: boolean; onClick: () => void; }> = ({ item, active, onClick }) => (
     <button
@@ -40,7 +40,9 @@ const capitalize = (s: string) => {
     return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-const createMealPlanItem = (recipe: Recipe, date: Date, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'): MealPlanItem => {
+type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+
+const createMealPlanItem = (recipe: Recipe, date: Date, mealType: MealType): MealPlanItem => {
     const dateString = date.toISOString().split('T')[0];
     return {
         date: dateString,
@@ -54,7 +56,7 @@ const createMealPlanItem = (recipe: Recipe, date: Date, mealType: 'Breakfast' | 
     };
 };
 
-const distributeRecipes = (recipes: Recipe[], days: Date[], mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack'): MealPlanItem[] => {
+const distributeRecipes = (recipes: Recipe[], days: Date[], mealType: MealType): MealPlanItem[] => {
     if (!recipes.length || !days.length) return [];
     
     const recipeCount = recipes.length;
@@ -89,6 +91,15 @@ const distributeRecipes = (recipes: Recipe[], days: Date[], mealType: 'Breakfast
 
 const MOBILE_NAV_VIEWS: View[] = [View.Dashboard, View.MealPlan, View.Pantry, View.ShoppingList, View.Cookbook];
 
+// Helper to get the Monday of a given date's week
+const getMonday = (d: Date) => {
+    d = new Date(d);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    return new Date(d.setDate(diff));
+};
+
 export default function App() {
     const [currentView, setCurrentView] = useState<View>(View.Dashboard);
     const [preferences, setPreferences] = useState<DietaryPreferences>(INITIAL_PREFERENCES);
@@ -101,6 +112,8 @@ export default function App() {
     const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
     const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [weeklyPreferences, setWeeklyPreferences] = useState<string>('');
+    const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
+    const [weekDaySelections, setWeekDaySelections] = useState<Record<string, number[]>>({});
 
     // State for granular UI feedback during generation
     const [loadingSlots, setLoadingSlots] = useState<string[]>([]);
@@ -130,7 +143,7 @@ export default function App() {
         setError(null);
         setFailedSlots({});
     
-        const mealTypes: ('Breakfast' | 'Lunch' | 'Snack' | 'Dinner')[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+        const mealTypes: MealType[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
         
         const allSlots = daysToGenerate.flatMap(d => mealTypes.map(mt => `${d.toISOString().split('T')[0]}-${mt}`));
         setLoadingSlots(allSlots);
@@ -173,9 +186,9 @@ export default function App() {
                     }
                 } else {
                     const errorMessage = result.reason instanceof Error ? result.reason.message : 'Generation failed';
-                    daysToGenerate.forEach(day => {
-                        newFailedSlots[`${day.toISOString().split('T')[0]}-${mealType}`] = errorMessage;
-                    });
+                    // For batch or variety failure, we use one key for the whole row to display the error.
+                    const failureKey = `${currentWeekStart.toISOString().split('T')[0]}-${mealType}`;
+                    newFailedSlots[failureKey] = errorMessage;
                 }
             });
     
@@ -197,6 +210,13 @@ export default function App() {
             setLoadingSlots([]);
         }
     };
+
+    const handleResetWeek = (daysToReset: Date[]) => {
+        const datesToResetSet = new Set(daysToReset.map(d => d.toISOString().split('T')[0]));
+        setMealPlan(current => 
+            current.filter(item => !datesToResetSet.has(item.date))
+        );
+    };
     
     const handleClearFailedSlot = (slotKey: string) => {
         setFailedSlots(current => {
@@ -206,9 +226,57 @@ export default function App() {
         });
     };
 
+    const handleGenerateBatch = async (mealType: MealType, daysToGenerate: Date[]) => {
+        if (daysToGenerate.length === 0) return;
+
+        const mealTypeKey = mealType.toLowerCase() as keyof MealPlanningPreferences;
+        const planningPref = preferences.mealPlanning[mealTypeKey];
+
+        if (!planningPref || planningPref.mode !== 'batch') {
+            console.error("Attempted to generate batch for a non-batch meal type.");
+            return;
+        }
+
+        const slotKeys = daysToGenerate.map(d => `${d.toISOString().split('T')[0]}-${mealType}`);
+        setLoadingSlots(current => [...new Set([...current, ...slotKeys])]);
+        
+        const failureKey = `${currentWeekStart.toISOString().split('T')[0]}-${mealType}`;
+        setFailedSlots(current => {
+            const next = { ...current };
+            delete next[failureKey];
+            return next;
+        });
+
+        try {
+            const recipes = await generateRecipes(
+                preferences,
+                pantryItems,
+                energyLevel,
+                mealType,
+                planningPref.batchMeals,
+                weeklyPreferences,
+                true // isBatch
+            );
+
+            const newItems = distributeRecipes(recipes, daysToGenerate, mealType);
+
+            setMealPlan(current => {
+                const datesToGenerateSet = new Set(daysToGenerate.map(d => d.toISOString().split('T')[0]));
+                const otherItems = current.filter(item => !(datesToGenerateSet.has(item.date) && item.mealType === mealType));
+                return [...otherItems, ...newItems].sort((a, b) => a.date.localeCompare(b.date));
+            });
+        } catch (err) {
+            const message = err instanceof Error ? err.message : `Failed to generate ${mealType} batch.`;
+            setError(message); // Global error
+            setFailedSlots(current => ({ ...current, [failureKey]: message }));
+        } finally {
+            setLoadingSlots(current => current.filter(s => !slotKeys.includes(s)));
+        }
+    };
+
     const handleGenerateTargetedMeals = async (
         day: Date,
-        mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+        mealType: MealType,
         scope: 'This Meal Only' | 'All Meal Types' | 'Rest of Today',
         cookingMethod: string,
         timeAvailable: string,
@@ -217,7 +285,7 @@ export default function App() {
         setIsLoading(true);
         setError(null);
         
-        let targetSlots: { date: Date; mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack' }[] = [];
+        let targetSlots: { date: Date; mealType: MealType }[] = [];
         if (scope === 'This Meal Only') {
             targetSlots = [{ date: day, mealType }];
         } else if (scope === 'All Meal Types') {
@@ -230,7 +298,7 @@ export default function App() {
             const todayString = day.toISOString().split('T')[0];
             const mealsForToday = mealPlan.filter(item => item.date === todayString);
             const mealTypesForToday = new Set(mealsForToday.map(item => item.mealType));
-            const allMealTypes: ('Breakfast' | 'Lunch' | 'Dinner' | 'Snack')[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
+            const allMealTypes: MealType[] = ['Breakfast', 'Lunch', 'Snack', 'Dinner'];
             const mealTypeIndex = allMealTypes.indexOf(mealType);
             const mealTypesToFill = allMealTypes.slice(mealTypeIndex).filter(mt => !mealTypesForToday.has(mt));
             targetSlots = mealTypesToFill.map(mt => ({ date: day, mealType: mt }));
@@ -276,7 +344,7 @@ export default function App() {
         }
     };
 
-    const handleFillMealType = async (mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', weekStart: Date) => {
+    const handleFillMealType = async (mealType: MealType, weekStart: Date) => {
         await handleGenerateTargetedMeals(weekStart, mealType, 'All Meal Types', 'Any Method', 'No Limit', weekStart);
     };
     
@@ -324,7 +392,7 @@ export default function App() {
 
     const handleUpdateBatchAssignments = (
         recipeId: string,
-        mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+        mealType: MealType,
         newAssignedDates: string[], // YYYY-MM-DD strings
         weekStart: Date
     ) => {
@@ -350,6 +418,79 @@ export default function App() {
             
             return [...planWithRemovals, ...newAssignments].sort((a, b) => a.date.localeCompare(b.date));
         });
+    };
+
+    const handleRemoveMeal = (recipeId: string, mealType: MealType, weekStart: Date) => {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const weekDateStrings = new Set<string>();
+        for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+            weekDateStrings.add(d.toISOString().split('T')[0]);
+        }
+    
+        setMealPlan(currentPlan => 
+            currentPlan.filter(item => 
+                !(weekDateStrings.has(item.date) && item.mealType === mealType && item.recipe?.id === recipeId)
+            )
+        );
+    };
+
+    const handleReplaceWithCookbook = (
+        mealType: MealType,
+        oldRecipeId: string,
+        newRecipe: Recipe,
+        weekStart: Date
+    ) => {
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        const weekDateStrings = new Set<string>();
+        for (let d = new Date(weekStart); d <= weekEnd; d.setDate(d.getDate() + 1)) {
+            weekDateStrings.add(d.toISOString().split('T')[0]);
+        }
+
+        const datesToReplace = mealPlan
+            .filter(item => weekDateStrings.has(item.date) && item.mealType === mealType && item.recipe?.id === oldRecipeId)
+            .map(item => new Date(item.date + 'T00:00:00'));
+
+        const newMealItems = datesToReplace.map(date => createMealPlanItem(newRecipe, date, mealType));
+
+        setMealPlan(currentPlan => {
+            const planWithRemovals = currentPlan.filter(item => 
+                !(weekDateStrings.has(item.date) && item.mealType === mealType && item.recipe?.id === oldRecipeId)
+            );
+            return [...planWithRemovals, ...newMealItems].sort((a, b) => a.date.localeCompare(b.date));
+        });
+    };
+
+    const handleRegenerateAndReplace = async (
+        mealType: MealType,
+        oldRecipeId: string,
+        customInstructions: string,
+        weekStart: Date
+    ) => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const newRecipe = await generateSingleMeal(
+                preferences,
+                pantryItems,
+                energyLevel,
+                mealType,
+                'Any',
+                'No Limit',
+                customInstructions || `Generate a new ${mealType.toLowerCase()} recipe as a replacement.`
+            );
+            
+            handleReplaceWithCookbook(mealType, oldRecipeId, newRecipe, weekStart);
+
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'Failed to regenerate meal.';
+            setError(message);
+            // Optionally, provide feedback to the user on the specific slot
+            alert(message);
+        } finally {
+            setIsLoading(false);
+        }
     };
     
     const calculateShoppingList = useCallback(() => {
@@ -459,7 +600,7 @@ export default function App() {
         });
     };
     
-    const handleToggleTask = (mealDate: string, mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack', taskId: string) => {
+    const handleToggleTask = (mealDate: string, mealType: MealType, taskId: string) => {
         setMealPlan(currentPlan =>
             currentPlan.map(item => {
                 if (item.date === mealDate && item.mealType === mealType) {
@@ -575,6 +716,7 @@ export default function App() {
                 return <MealPlan 
                     mealPlan={mealPlan} 
                     preferences={preferences}
+                    cookbook={cookbook}
                     onGenerateWeek={handleGenerateWeek} 
                     onToggleTask={handleToggleTask} 
                     onToggleFavorite={handleToggleFavorite} 
@@ -588,6 +730,15 @@ export default function App() {
                     weeklyPreferences={weeklyPreferences}
                     setWeeklyPreferences={setWeeklyPreferences}
                     onUpdateBatchAssignments={handleUpdateBatchAssignments}
+                    currentWeekStart={currentWeekStart}
+                    setCurrentWeekStart={setCurrentWeekStart}
+                    weekDaySelections={weekDaySelections}
+                    setWeekDaySelections={setWeekDaySelections}
+                    onRemoveMeal={handleRemoveMeal}
+                    onRegenerateAndReplace={handleRegenerateAndReplace}
+                    onReplaceWithCookbook={handleReplaceWithCookbook}
+                    onGenerateBatch={handleGenerateBatch}
+                    onResetWeek={handleResetWeek}
                 />;
             case View.Cookbook:
                 return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;

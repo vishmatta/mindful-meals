@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// Fix: Removed 'Cookbook' from import as it is not an exported type from '../types'.
 import { DietaryPreferences, MealPlanItem, Recipe, MealPlanningPreferences } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
@@ -11,6 +12,7 @@ type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 interface MealPlanProps {
     mealPlan: MealPlanItem[];
     preferences: DietaryPreferences;
+    cookbook: Recipe[];
     onGenerateWeek: (days: Date[]) => Promise<void>;
     onToggleTask: (mealDate: string, mealType: MealType, taskId: string) => void;
     onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
@@ -31,6 +33,15 @@ interface MealPlanProps {
     weeklyPreferences: string;
     setWeeklyPreferences: (prefs: string) => void;
     onUpdateBatchAssignments: (recipeId: string, mealType: MealType, newDates: string[], weekStart: Date) => void;
+    currentWeekStart: Date;
+    setCurrentWeekStart: (date: Date) => void;
+    weekDaySelections: Record<string, number[]>;
+    setWeekDaySelections: React.Dispatch<React.SetStateAction<Record<string, number[]>>>;
+    onRemoveMeal: (recipeId: string, mealType: MealType, weekStart: Date) => void;
+    onRegenerateAndReplace: (mealType: MealType, oldRecipeId: string, customInstructions: string, weekStart: Date) => Promise<void>;
+    onReplaceWithCookbook: (mealType: MealType, oldRecipeId: string, newRecipe: Recipe, weekStart: Date) => void;
+    onGenerateBatch: (mealType: MealType, days: Date[]) => Promise<void>;
+    onResetWeek: (days: Date[]) => void;
 }
 
 const MealCard: React.FC<{
@@ -72,15 +83,6 @@ const MealCard: React.FC<{
             </div>
         </button>
     );
-};
-
-// Helper to get the Monday of a given date's week
-const getMonday = (d: Date) => {
-    d = new Date(d);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-    return new Date(d.setDate(diff));
 };
 
 const formatWeekRange = (start: Date) => {
@@ -153,19 +155,13 @@ const BatchMealRow: React.FC<{
     mealPlan: MealPlanItem[];
     onToggleFavorite: (recipeId: string, mealDate: string, mealType: MealType) => void;
     onOpenDetailModal: (recipe: Recipe, mealType: MealType) => void;
-}> = ({ mealType, days, mealPlan, onToggleFavorite, onOpenDetailModal }) => {
+    onAdd: () => void;
+    loadingSlots: string[];
+}> = ({ mealType, days, mealPlan, onToggleFavorite, onOpenDetailModal, onAdd, loadingSlots }) => {
     const relevantMeals = mealPlan.filter(item => 
         item.mealType === mealType && 
         days.some(d => d.toISOString().split('T')[0] === item.date)
     );
-
-    if (relevantMeals.length === 0) {
-        return (
-            <div className="bg-background-primary rounded-lg text-text-secondary p-4 text-center italic">
-                No {mealType} meals planned for these days.
-            </div>
-        )
-    }
 
     const recipesWithDays = new Map<string, { recipe: Recipe, dates: string[] }>();
     relevantMeals.forEach(item => {
@@ -180,34 +176,43 @@ const BatchMealRow: React.FC<{
     });
 
     const uniqueRecipes = Array.from(recipesWithDays.values());
+    const isAnythingLoading = loadingSlots.some(slot => slot.endsWith(mealType));
     
     return (
         <div className="bg-background-secondary p-4 rounded-lg">
             <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
-            <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${uniqueRecipes.length || 1} gap-4`}>
-                {uniqueRecipes.map(({ recipe, dates }) => (
-                    <button key={recipe.id} onClick={() => onOpenDetailModal(recipe, mealType)} className="bg-background-primary p-3 rounded-lg shadow-sm text-left hover:shadow-md hover:border-primary border border-transparent transition-all">
-                        <div className="flex justify-between items-start">
-                             <h4 className="font-bold text-sm pr-2 font-heading">{recipe.name}</h4>
-                            <div
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    onToggleFavorite(recipe.id, relevantMeals.find(i => i.recipe?.id === recipe.id)!.date, mealType);
-                                }}
-                                className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex-shrink-0"
-                                aria-label="Toggle favorite"
-                            >
-                                <Icon name="heart" className={`w-5 h-5 ${recipe.isFavorite ? 'text-functional-danger fill-current' : ''}`} />
+            {isAnythingLoading ? (
+                 <div className="flex items-center justify-center p-8 min-h-[140px]">
+                    <Icon name="loading" className="w-10 h-10 text-primary animate-spin" />
+                </div>
+            ) : uniqueRecipes.length > 0 ? (
+                <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-${uniqueRecipes.length || 1} gap-4`}>
+                    {uniqueRecipes.map(({ recipe, dates }) => (
+                        <button key={recipe.id} onClick={() => onOpenDetailModal(recipe, mealType)} className="bg-background-primary p-3 rounded-lg shadow-sm text-left hover:shadow-md hover:border-primary border border-transparent transition-all">
+                            <div className="flex justify-between items-start">
+                                <h4 className="font-bold text-sm pr-2 font-heading">{recipe.name}</h4>
+                                <div
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onToggleFavorite(recipe.id, relevantMeals.find(i => i.recipe?.id === recipe.id)!.date, mealType);
+                                    }}
+                                    className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex-shrink-0"
+                                    aria-label="Toggle favorite"
+                                >
+                                    <Icon name="heart" className={`w-5 h-5 ${recipe.isFavorite ? 'text-functional-danger fill-current' : ''}`} />
+                                </div>
                             </div>
-                        </div>
-                        <p className="text-xs text-text-secondary mt-1 line-clamp-2 flex-grow">{recipe.description}</p>
-                        <div className="mt-3 pt-3 border-t border-neutral-medium/20">
-                            <p className="text-xs font-semibold text-text-secondary">Assigned Days:</p>
-                            <p className="text-xs text-text-primary font-medium">{dates.join(', ')}</p>
-                        </div>
-                    </button>
-                ))}
-            </div>
+                            <p className="text-xs text-text-secondary mt-1 line-clamp-2 flex-grow">{recipe.description}</p>
+                            <div className="mt-3 pt-3 border-t border-neutral-medium/20">
+                                <p className="text-xs font-semibold text-text-secondary">Assigned Days:</p>
+                                <p className="text-xs text-text-primary font-medium">{dates.join(', ')}</p>
+                            </div>
+                        </button>
+                    ))}
+                </div>
+            ) : (
+                <AddMealButton onClick={onAdd} />
+            )}
         </div>
     );
 };
@@ -218,11 +223,33 @@ const VarietyMealRow: React.FC<{
     days: Date[];
     renderMealSlot: (day: Date, mealType: MealType) => React.ReactNode;
 }> = ({ mealType, days, renderMealSlot }) => {
+    if (days.length === 0) {
+        return (
+            <div className="bg-background-secondary p-4 rounded-lg">
+                <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
+                <div className="text-center text-text-secondary italic py-4">
+                    No meals planned for this category on the selected days.
+                </div>
+            </div>
+        );
+    }
+
+    const gridColMap: { [key: number]: string } = {
+        1: 'md:grid-cols-1',
+        2: 'md:grid-cols-2',
+        3: 'md:grid-cols-3',
+        4: 'md:grid-cols-4',
+        5: 'md:grid-cols-5',
+        6: 'md:grid-cols-6',
+        7: 'md:grid-cols-7',
+    };
+    const gridColsClass = gridColMap[days.length] || 'md:grid-cols-7';
+
     return (
         <div className="bg-background-secondary p-4 rounded-lg">
             <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
             {/* Desktop */}
-            <div className="hidden md:grid grid-cols-7 gap-4">
+            <div className={`hidden md:grid ${gridColsClass} gap-4`}>
                 {days.map(day => (
                     <div key={day.toISOString()} className="flex flex-col items-center text-center">
                         <p className="text-sm font-semibold mb-2">{day.toLocaleDateString('en-US', { weekday: 'short' })}</p>
@@ -246,26 +273,30 @@ const VarietyMealRow: React.FC<{
 
 export const MealPlan: React.FC<MealPlanProps> = ({ 
     mealPlan, onGenerateWeek, onToggleTask, onToggleFavorite, isLoading, onGenerateToday, onFillMealType, onGenerateTargetedMeals,
-    loadingSlots, failedSlots, onClearFailedSlot, weeklyPreferences, setWeeklyPreferences, preferences, onUpdateBatchAssignments
+    loadingSlots, failedSlots, onClearFailedSlot, weeklyPreferences, setWeeklyPreferences, preferences, onUpdateBatchAssignments,
+    currentWeekStart, setCurrentWeekStart, weekDaySelections, setWeekDaySelections, cookbook, onRemoveMeal,
+    onRegenerateAndReplace, onReplaceWithCookbook, onGenerateBatch, onResetWeek,
 }) => {
-    const [currentWeekStart, setCurrentWeekStart] = useState(getMonday(new Date()));
-    const [selectedDays, setSelectedDays] = useState<number[]>([0, 1, 2, 3, 4, 5, 6]); // 0=Mon, 1=Tue, etc.
-
-    // Modal state for adding a meal
+    // Modal state
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
     const [selectedMealType, setSelectedMealType] = useState<MealType | null>(null);
     
-    // Modal state for viewing meal details
     const [detailModalRecipe, setDetailModalRecipe] = useState<Recipe | null>(null);
     const [detailModalMealType, setDetailModalMealType] = useState<MealType | null>(null);
     const [batchDayAssignments, setBatchDayAssignments] = useState<string[]>([]);
+    
+    const [replaceModalData, setReplaceModalData] = useState<{ recipe: Recipe; mealType: MealType } | null>(null);
+    const [customInstructions, setCustomInstructions] = useState('');
+    const [selectedCookbookId, setSelectedCookbookId] = useState<string>('');
 
-
-    // Modal selection state
+    // Add modal selection state
     const [scope, setScope] = useState<'This Meal Only' | 'All Meal Types' | 'Rest of Today'>('This Meal Only');
     const [cookingMethod, setCookingMethod] = useState('Any Method');
     const [timeAvailable, setTimeAvailable] = useState('No Limit');
+
+    const currentWeekKey = currentWeekStart.toISOString().split('T')[0];
+    const selectedDays = weekDaySelections[currentWeekKey] ?? [0, 1, 2, 3, 4, 5, 6];
 
     useEffect(() => {
         if (detailModalRecipe && detailModalMealType) {
@@ -278,6 +309,13 @@ export const MealPlan: React.FC<MealPlanProps> = ({
             }
         }
     }, [detailModalRecipe, detailModalMealType, mealPlan, preferences.mealPlanning]);
+
+    useEffect(() => {
+      if (replaceModalData) {
+        setCustomInstructions('');
+        setSelectedCookbookId('');
+      }
+    }, [replaceModalData])
     
     const handlePreviousWeek = () => {
         const newDate = new Date(currentWeekStart);
@@ -318,22 +356,57 @@ export const MealPlan: React.FC<MealPlanProps> = ({
     };
     
     const handleBatchDayToggle = (dateString: string) => {
-        setBatchDayAssignments(prev => 
-            prev.includes(dateString) ? prev.filter(d => d !== dateString) : [...prev, dateString]
-        );
-    };
+        const newAssignments = batchDayAssignments.includes(dateString)
+            ? batchDayAssignments.filter(d => d !== dateString)
+            : [...batchDayAssignments, dateString];
+        
+        setBatchDayAssignments(newAssignments);
 
-    const handleSaveBatchAssignments = () => {
         if (detailModalRecipe && detailModalMealType) {
-            onUpdateBatchAssignments(detailModalRecipe.id, detailModalMealType, batchDayAssignments, currentWeekStart);
-            handleCloseDetailModal();
+            onUpdateBatchAssignments(detailModalRecipe.id, detailModalMealType, newAssignments, currentWeekStart);
         }
     };
 
+    const handleRemoveClick = () => {
+      if (detailModalRecipe && detailModalMealType) {
+        onRemoveMeal(detailModalRecipe.id, detailModalMealType, currentWeekStart);
+        handleCloseDetailModal();
+      }
+    };
+
+    const handleReplaceClick = () => {
+      if (detailModalRecipe && detailModalMealType) {
+        setReplaceModalData({ recipe: detailModalRecipe, mealType: detailModalMealType });
+        handleCloseDetailModal();
+      }
+    };
+
+    const handleRegenerate = async () => {
+      if (replaceModalData) {
+        await onRegenerateAndReplace(replaceModalData.mealType, replaceModalData.recipe.id, customInstructions, currentWeekStart);
+        setReplaceModalData(null);
+      }
+    };
+
+    const handleReplaceFromCookbook = () => {
+      if (replaceModalData && selectedCookbookId) {
+        const selectedRecipe = cookbook.find(r => r.id === selectedCookbookId);
+        if (selectedRecipe) {
+          onReplaceWithCookbook(replaceModalData.mealType, replaceModalData.recipe.id, selectedRecipe, currentWeekStart);
+          setReplaceModalData(null);
+        }
+      }
+    };
+
     const handleToggleDay = (dayIndex: number) => {
-        setSelectedDays(prev => 
-            prev.includes(dayIndex) ? prev.filter(d => d !== dayIndex) : [...prev, dayIndex].sort()
-        );
+        const newSelection = selectedDays.includes(dayIndex)
+            ? selectedDays.filter(d => d !== dayIndex)
+            : [...selectedDays, dayIndex].sort((a, b) => a - b);
+        
+        setWeekDaySelections(prevSelections => ({
+            ...prevSelections,
+            [currentWeekKey]: newSelection,
+        }));
     };
     
     const handleGenerate = () => {
@@ -350,6 +423,10 @@ export const MealPlan: React.FC<MealPlanProps> = ({
         d.setDate(d.getDate() + i);
         return d;
     });
+    
+    const selectedDates = days.filter((_, index) => selectedDays.includes(index));
+    const selectedDateStrings = new Set(selectedDates.map(d => d.toISOString().split('T')[0]));
+    const isWeekPopulated = mealPlan.some(item => selectedDateStrings.has(item.date));
 
     const cookingMethodOptions = ['Any Method', 'Air Fryer', 'Stovetop', 'Oven', 'Microwave', 'Slow Cooker'];
     const timeAvailableOptions = ['No Limit', '15 minutes', '30 minutes', '1 hour'];
@@ -400,9 +477,16 @@ export const MealPlan: React.FC<MealPlanProps> = ({
         <div className="p-4 sm:p-6 lg:p-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h1 className="text-3xl font-bold text-text-primary font-heading hidden md:block">Your Meal Plan</h1>
-                <Button onClick={handleGenerate} isLoading={isLoading} className="mt-4 sm:mt-0 self-start sm:self-center w-full sm:w-auto" disabled={selectedDays.length === 0}>
-                    {isLoading ? 'Generating...' : `Generate for ${selectedDays.length} Day(s)`}
-                </Button>
+                <div className="flex items-center gap-2 mt-4 sm:mt-0 self-start sm:self-center w-full sm:w-auto">
+                    {isWeekPopulated && (
+                        <Button onClick={() => onResetWeek(selectedDates)} variant="secondary">
+                            Reset Week
+                        </Button>
+                    )}
+                    <Button onClick={handleGenerate} isLoading={isLoading} className="w-full flex-grow" disabled={selectedDays.length === 0}>
+                        {isLoading ? 'Generating...' : `${isWeekPopulated ? 'Regenerate' : 'Generate'} for ${selectedDays.length} Day(s)`}
+                    </Button>
+                </div>
             </div>
             
             <div className="flex items-center justify-center gap-4 mb-6 p-2 bg-background-secondary rounded-lg">
@@ -483,15 +567,8 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                             </div>
                          )
                      }
-                     if (loadingSlots.some(slot => slot.endsWith(mealType))) {
-                         return (
-                            <div key={mealType} className="bg-background-secondary p-4 rounded-lg">
-                                <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
-                                <div className="flex items-center justify-center p-8"> <Icon name="loading" className="w-10 h-10 text-primary animate-spin" /> </div>
-                            </div>
-                         );
-                     }
-                    if (failedSlots[`${days[0].toISOString().split('T')[0]}-${mealType}`]) {
+
+                    if (failedSlots[`${currentWeekStart.toISOString().split('T')[0]}-${mealType}`]) {
                         return (
                             <div key={mealType} className="bg-background-secondary p-4 rounded-lg">
                                 <h3 className="text-xl font-bold font-heading text-text-primary capitalize mb-4">{mealType}</h3>
@@ -501,9 +578,9 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                     }
 
                     if (planningPref.mode === 'batch') {
-                        return <BatchMealRow key={mealType} mealType={mealType} days={days} mealPlan={mealPlan} onToggleFavorite={onToggleFavorite} onOpenDetailModal={handleOpenDetailModal} />;
+                        return <BatchMealRow key={mealType} mealType={mealType} days={selectedDates} mealPlan={mealPlan} onToggleFavorite={onToggleFavorite} onOpenDetailModal={handleOpenDetailModal} onAdd={() => onGenerateBatch(mealType, selectedDates)} loadingSlots={loadingSlots} />;
                     } else { // variety
-                        return <VarietyMealRow key={mealType} mealType={mealType} days={days} renderMealSlot={renderMealSlot} />;
+                        return <VarietyMealRow key={mealType} mealType={mealType} days={selectedDates} renderMealSlot={renderMealSlot} />;
                     }
                 })}
             </div>
@@ -527,7 +604,21 @@ export const MealPlan: React.FC<MealPlanProps> = ({
             )}
 
             {detailModalRecipe && detailModalMealType && (
-                 <Modal isOpen={true} onClose={handleCloseDetailModal} title={detailModalRecipe.name}>
+                 <Modal 
+                    isOpen={true} 
+                    onClose={handleCloseDetailModal} 
+                    title={detailModalRecipe.name}
+                    footer={
+                      <div className="flex justify-end gap-2 w-full">
+                          <Button variant="secondary" onClick={handleRemoveClick}>
+                              <Icon name="trash" className="w-4 h-4 mr-2" /> Remove
+                          </Button>
+                          <Button onClick={handleReplaceClick}>
+                              <Icon name="refresh" className="w-4 h-4 mr-2" /> Replace
+                          </Button>
+                      </div>
+                    }
+                 >
                     <div className="space-y-4">
                         <p className="text-text-secondary">{detailModalRecipe.description}</p>
                          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
@@ -576,13 +667,61 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                                         );
                                     })}
                                 </div>
-                                <div className="flex justify-end pt-4 mt-2">
-                                    <Button onClick={handleSaveBatchAssignments}>Save Day Assignments</Button>
-                                </div>
                             </div>
                         )}
                     </div>
                  </Modal>
+            )}
+
+            {replaceModalData && (
+                <Modal 
+                    isOpen={true} 
+                    onClose={() => setReplaceModalData(null)} 
+                    title={`Replace ${replaceModalData.recipe.name}`}
+                >
+                    <div className="space-y-6">
+                        <p className="text-sm text-text-secondary">You can regenerate this meal with new instructions, or replace it with a recipe from your cookbook.</p>
+                        
+                        <div>
+                            <label htmlFor="regen-instructions" className="block text-sm font-medium text-text-primary mb-1">Regenerate with Custom Instructions (Optional)</label>
+                            <textarea
+                                id="regen-instructions"
+                                rows={2}
+                                value={customInstructions}
+                                onChange={(e) => setCustomInstructions(e.target.value)}
+                                placeholder="e.g., 'something spicier', 'use chicken instead'"
+                                className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
+                            />
+                            <Button onClick={handleRegenerate} isLoading={isLoading} className="mt-2">
+                                Regenerate & Replace
+                            </Button>
+                        </div>
+                        
+                        <div className="flex items-center">
+                            <div className="flex-grow border-t border-neutral-medium/30"></div>
+                            <span className="flex-shrink mx-4 text-sm text-text-secondary">OR</span>
+                            <div className="flex-grow border-t border-neutral-medium/30"></div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="cookbook-select" className="block text-sm font-medium text-text-primary mb-1">Replace from Cookbook</label>
+                            <select
+                                id="cookbook-select"
+                                value={selectedCookbookId}
+                                onChange={(e) => setSelectedCookbookId(e.target.value)}
+                                className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary"
+                            >
+                                <option value="" disabled>Select a recipe...</option>
+                                {cookbook.map(recipe => (
+                                    <option key={recipe.id} value={recipe.id}>{recipe.name}</option>
+                                ))}
+                            </select>
+                             <Button onClick={handleReplaceFromCookbook} className="mt-2" disabled={!selectedCookbookId}>
+                                Replace with Selected
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
             )}
         </div>
     );

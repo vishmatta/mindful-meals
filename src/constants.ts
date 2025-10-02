@@ -1,3 +1,5 @@
+
+
 import { DietaryPreferences, EnergyLevel, Ingredient, MealPlanItem, View } from './types';
 
 export const ENERGY_LEVELS = {

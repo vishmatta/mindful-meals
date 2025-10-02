@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { EnergyLevel, MealPlanItem, Recipe, View, DietaryPreferences, Ingredient } from '../types';
 import { ENERGY_LEVELS } from '../constants';

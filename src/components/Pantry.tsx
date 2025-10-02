@@ -1,3 +1,5 @@
+
+
 import React, { useState, useMemo, useRef } from 'react';
 import { Ingredient, ScannedItem } from '../types';
 import { Button } from './common/Button';

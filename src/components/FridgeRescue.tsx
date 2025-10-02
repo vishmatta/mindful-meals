@@ -1,3 +1,5 @@
+
+
 import React, { useState, useRef } from 'react';
 import { DietaryPreferences } from '../types';
 import { analyzeFridgeImage } from '../services/geminiService';

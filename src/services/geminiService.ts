@@ -2,7 +2,7 @@ import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/ge
 import { DietaryPreferences, Ingredient, Recipe, EnergyLevel, ScannedItem } from '../types';
 import { PANTRY_CATEGORIES } from "../constants";
 
-// Fix: Initialize GoogleGenAI with API_KEY from environment variables directly as per guidelines.
+// Fix: Use process.env.API_KEY as per the coding guidelines.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const recipeSchema = {

@@ -1,5 +1,3 @@
-
-
 import React from 'react';
 import { DietaryPreferences, MealPlanningMode, MealPlanningPreferences } from '../types';
 import { Button } from './common/Button';
@@ -220,6 +218,38 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, t
                             setItems={(newItems) => handleListUpdate('shoppingStores', newItems)}
                             placeholder="e.g., Trader Joe's"
                         />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                            <div>
+                                <label htmlFor="zip-code" className="block text-sm font-medium text-text-primary">
+                                    Home Zip Code
+                                </label>
+                                <input
+                                    type="text"
+                                    id="zip-code"
+                                    value={preferences.zipCode}
+                                    onChange={(e) => onSave({ ...preferences, zipCode: e.target.value })}
+                                    placeholder="e.g., 90210"
+                                    className="mt-1 block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
+                                />
+                            </div>
+                             <div>
+                                <div className="flex items-center space-x-2">
+                                    <label htmlFor="store-radius" className="block text-sm font-medium text-text-primary">
+                                        Shopping Radius: <span className="font-semibold text-primary">{preferences.storeRadius} miles</span>
+                                    </label>
+                                </div>
+                                <input
+                                    type="range"
+                                    id="store-radius"
+                                    min="1"
+                                    max="50"
+                                    step="1"
+                                    value={preferences.storeRadius}
+                                    onChange={(e) => onSave({ ...preferences, storeRadius: Number(e.target.value) })}
+                                    className="w-full h-2 bg-neutral-light rounded-lg appearance-none cursor-pointer mt-2 accent-primary"
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

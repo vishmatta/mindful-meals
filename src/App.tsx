@@ -87,6 +87,11 @@ function App() {
       mealPlan.filter(item => weekDates.has(item.date)).forEach(meal => {
           if (meal.recipe) {
               meal.recipe.ingredients.forEach(ing => {
+                  // Fix: Exclude "water" from the shopping list.
+                  if (ing.name.toLowerCase().trim() === 'water') {
+                      return;
+                  }
+                  
                   const pantryItem = pantryItems.find(p => p.name.toLowerCase() === ing.name.toLowerCase());
                   if (!pantryItem || !pantryItem.inStock) {
                       const key = `${ing.name.toLowerCase()}-${ing.unit.toLowerCase()}`;

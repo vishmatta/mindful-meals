@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { ShoppingListItem } from '../types';
 import { Icon } from './common/Icon';
@@ -35,8 +33,11 @@ const StoreSelector: React.FC<{
         if (selectedStore !== 'Other') {
             onChange(selectedStore);
         } else {
-            // When user selects "Other", clear the store value to let them type a new one.
-            onChange(''); 
+            // If the current value is not already a custom one, clear it to allow typing a new one.
+            // This prevents clearing an existing custom value if the user re-selects 'Other'.
+            if (!isCustomValue) {
+                onChange('');
+            }
         }
     };
 

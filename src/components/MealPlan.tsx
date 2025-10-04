@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 // Fix: Removed 'Cookbook' from import as it is not an exported type from '../types'.
 import { DietaryPreferences, MealPlanItem, Recipe, MealPlanningPreferences } from '../types';
@@ -495,7 +493,7 @@ export const MealPlan: React.FC<MealPlanProps> = ({
                 <Button variant="secondary" className="p-2" onClick={handlePreviousWeek} aria-label="Previous week">
                     <Icon name="chevron-left" className="w-5 h-5" />
                 </Button>
-                <p className="text-text-primary font-semibold w-52 text-center text-sm sm:text-base">{formatWeekRange(currentWeekStart)}</p>
+                <p className="text-text-primary font-semibold whitespace-nowrap text-center text-sm sm:text-base">{formatWeekRange(currentWeekStart)}</p>
                 <Button variant="secondary" className="p-2" onClick={handleNextWeek} aria-label="Next week">
                     <Icon name="chevron-right" className="w-5 h-5" />
                 </Button>

@@ -43,7 +43,9 @@ export const INITIAL_PREFERENCES: DietaryPreferences = {
     lunch: { mode: 'batch', batchMeals: 2 },
     snack: { mode: 'variety', batchMeals: 1 },
     dinner: { mode: 'batch', batchMeals: 2 },
-  }
+  },
+  zipCode: '',
+  storeRadius: 5,
 };
 
 export const INITIAL_PANTRY: Ingredient[] = [

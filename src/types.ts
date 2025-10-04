@@ -44,6 +44,8 @@ export interface DietaryPreferences {
   cuisinePreferences: string[];
   shoppingStores: string[];
   mealPlanning: MealPlanningPreferences;
+  zipCode: string;
+  storeRadius: number;
 }
 
 export interface PrepStep {

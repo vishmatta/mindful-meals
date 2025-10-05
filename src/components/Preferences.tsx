@@ -1,5 +1,5 @@
 import React from 'react';
-import { DietaryPreferences, MealPlanningMode, MealPlanningPreferences } from '../types';
+import { DietaryPreferences, MealPlanningMode, MealPlanningPreferences, YouTubeSource } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 
@@ -65,7 +65,7 @@ export const Preferences: React.FC<PreferencesProps> = ({ preferences, onSave, t
     const handleListUpdate = (key: 'globalRestrictions' | 'equipment' | 'cuisinePreferences' | 'shoppingStores', newItems: string[]) => {
         onSave({ ...preferences, [key]: newItems });
     };
-
+    
     const handleMealPlanningChange = (
         mealType: keyof MealPlanningPreferences,
         field: 'mode' | 'batchMeals',

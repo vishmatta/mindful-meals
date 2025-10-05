@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo } from 'react';
 import { Recipe } from '../types';
 import { Icon } from './common/Icon';
@@ -42,6 +40,13 @@ const RecipeCard: React.FC<{ recipe: Recipe; onToggleFavorite: (recipeId: string
             </button>
             {isExpanded && (
                 <div className="mt-4 border-t border-neutral-medium/20 pt-4">
+                    {recipe.sourceType === 'youtube' && recipe.sourceUrl && (
+                        <div className="mb-4 p-3 bg-background-primary rounded-lg">
+                            <p className="text-xs text-text-secondary">
+                                Inspired by <a href={recipe.sourceUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary hover:underline">{recipe.sourceTitle || 'a YouTube video'}</a> by {recipe.sourceChannel || 'a creator'}.
+                            </p>
+                        </div>
+                    )}
                     <h4 className="font-semibold text-sm mb-2 font-heading">Ingredients</h4>
                     <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">
                         {recipe.ingredients.map((ing, i) => <li key={i}>{ing.quantity} {ing.unit} {ing.name}</li>)}

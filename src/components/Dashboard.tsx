@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { EnergyLevel, MealPlanItem, Recipe, View, DietaryPreferences, Ingredient } from '../types';
 import { ENERGY_LEVELS } from '../constants';
@@ -176,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                             rows={2}
                             value={customInstructions}
                             onChange={(e) => setCustomInstructions(e.target.value)}
-                            placeholder="e.g., 'use up the leftover chicken', 'make it extra spicy'"
+                            placeholder="e.g., 'use the leftover chicken', 'use my saved 20-min Garlic Noodles video'"
                             className="block w-full rounded-md border-neutral-medium/30 shadow-sm focus:border-primary focus:ring-primary sm:text-sm bg-background-primary text-text-primary placeholder:text-text-secondary/70"
                         />
                     </div>
@@ -207,6 +205,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                                 {isSavedInCookbook ? 'Saved' : 'Save'}
                             </button>
                         </div>
+                        {generatedRecipe.sourceType === 'youtube' && generatedRecipe.sourceUrl && (
+                            <div className="mt-4 p-3 bg-background-secondary rounded-lg">
+                                <h5 className="text-xs font-semibold text-text-secondary">Source Video</h5>
+                                <a href={generatedRecipe.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline block truncate">
+                                    {generatedRecipe.sourceTitle || generatedRecipe.sourceUrl}
+                                </a>
+                            </div>
+                        )}
                         <div>
                             <h4 className="font-semibold text-sm mb-2 font-heading">Ingredients</h4>
                             <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">

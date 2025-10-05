@@ -1,5 +1,4 @@
-
-
+// Fix: Removed circular import of 'View' from the same file, which was causing a compilation error.
 export enum View {
   Dashboard = 'DASHBOARD',
   MealPlan = 'MEAL_PLAN',
@@ -8,6 +7,7 @@ export enum View {
   Preferences = 'PREFERENCES',
   FridgeRescue = 'FRIDGE_RESCUE',
   Cookbook = 'COOKBOOK',
+  YouTubeSources = 'YOUTUBE_SOURCES',
 }
 
 export enum EnergyLevel {
@@ -38,6 +38,12 @@ export interface MealPlanningPreferences {
   dinner: MealPlanPreference;
 }
 
+export interface YouTubeSource {
+  id: string;
+  url: string;
+  name: string; // User-defined name for the video
+}
+
 export interface DietaryPreferences {
   globalRestrictions: string[];
   equipment: string[];
@@ -46,6 +52,7 @@ export interface DietaryPreferences {
   mealPlanning: MealPlanningPreferences;
   zipCode: string;
   storeRadius: number;
+  youtubeSources: YouTubeSource[];
 }
 
 export interface PrepStep {
@@ -70,6 +77,11 @@ export interface Recipe {
   cuisine: string;
   cookingMethod?: string;
   substitutions?: string[];
+  // New fields for source attribution
+  sourceType?: 'ai' | 'youtube';
+  sourceUrl?: string;
+  sourceTitle?: string;
+  sourceChannel?: string;
 }
 
 export interface MealPlanItem {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DietaryPreferences,
@@ -11,6 +11,7 @@ import {
   ScannedItem,
   MealPlanningPreferences,
   PrepStep,
+  YouTubeSource,
 } from './types';
 import {
   INITIAL_PANTRY,
@@ -23,6 +24,7 @@ import {
   generateRecipes,
   generateTargetedRecipes,
   generateSingleMeal,
+  generateShoppingList,
 } from './services/geminiService';
 
 import { Dashboard } from './components/Dashboard';
@@ -32,6 +34,7 @@ import { ShoppingList } from './components/ShoppingList';
 import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
+import { YouTubeSources } from './components/YouTubeSources';
 import { Icon } from './components/common/Icon';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -41,6 +44,13 @@ const getStartOfWeek = () => {
   const day = now.getDay();
   const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
   return new Date(new Date(now.setDate(diff)).setHours(0, 0, 0, 0));
+};
+
+const getStartOfWeekForDate = (date: Date) => {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    return new Date(new Date(d.setDate(diff)).setHours(0, 0, 0, 0));
 };
 
 function App() {
@@ -58,16 +68,20 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState<string[]>([]);
   const [failedSlots, setFailedSlots] = useState<Record<string, string>>({});
-  const [weeklyPreferences, setWeeklyPreferences] = useState('');
+  const [weeklyPreferencesByWeek, setWeeklyPreferencesByWeek] = useState<Record<string, string>>(() => JSON.parse(localStorage.getItem('weeklyPreferencesByWeek') || '{}'));
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getStartOfWeek());
   const [weekDaySelections, setWeekDaySelections] = useState<Record<string, number[]>>({});
-  const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>([]);
+  const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>(() => JSON.parse(localStorage.getItem('shoppingList') || '[]'));
+  const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
+  const [debounceTimeout, setDebounceTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Persist state to local storage
   useEffect(() => { localStorage.setItem('preferences', JSON.stringify(preferences)); }, [preferences]);
   useEffect(() => { localStorage.setItem('pantry', JSON.stringify(pantryItems)); }, [pantryItems]);
   useEffect(() => { localStorage.setItem('mealPlan', JSON.stringify(mealPlan)); }, [mealPlan]);
   useEffect(() => { localStorage.setItem('cookbook', JSON.stringify(cookbook)); }, [cookbook]);
+  useEffect(() => { localStorage.setItem('shoppingList', JSON.stringify(shoppingList)); }, [shoppingList]);
+  useEffect(() => { localStorage.setItem('weeklyPreferencesByWeek', JSON.stringify(weeklyPreferencesByWeek)); }, [weeklyPreferencesByWeek]);
   
   // Theme management
   useEffect(() => {
@@ -75,58 +89,73 @@ function App() {
     document.documentElement.classList.add(theme);
   }, [theme]);
 
-  // Derive shopping list from meal plan and pantry stock
-  const derivedShoppingList = useMemo(() => {
-      const requiredItems = new Map<string, ShoppingListItem>();
-      const weekDates = new Set(Array.from({length: 7}, (_, i) => {
-        const d = new Date(currentWeekStart);
-        d.setDate(d.getDate() + i);
-        return d.toISOString().split('T')[0];
-      }));
-  
-      mealPlan.filter(item => weekDates.has(item.date)).forEach(meal => {
-          if (meal.recipe) {
-              meal.recipe.ingredients.forEach(ing => {
-                  // Fix: Exclude "water" from the shopping list.
-                  if (ing.name.toLowerCase().trim() === 'water') {
-                      return;
-                  }
-                  
-                  const pantryItem = pantryItems.find(p => p.name.toLowerCase() === ing.name.toLowerCase());
-                  if (!pantryItem || !pantryItem.inStock) {
-                      const key = `${ing.name.toLowerCase()}-${ing.unit.toLowerCase()}`;
-                      const existing = requiredItems.get(key);
-                      if (existing) {
-                          existing.quantity += ing.quantity;
-                      } else {
-                          requiredItems.set(key, {
-                              id: uuidv4(),
-                              name: ing.name,
-                              quantity: ing.quantity,
-                              unit: ing.unit,
-                              store: preferences.shoppingStores[0] || 'Other',
-                              isGenerated: true,
-                              isChecked: false,
-                              isOptional: ing.isOptional,
-                          });
-                      }
-                  }
-              });
-          }
-      });
-      return Array.from(requiredItems.values());
-  }, [mealPlan, pantryItems, preferences.shoppingStores, currentWeekStart]);
-
+  // Generate shopping list from meal plan and pantry stock
   useEffect(() => {
-      setShoppingList(prevList => {
-          const manualItems = prevList.filter(i => !i.isGenerated);
-          const newGeneratedItems = derivedShoppingList.map(newItem => {
+    if (debounceTimeout) {
+      clearTimeout(debounceTimeout);
+    }
+
+    const timeoutId = setTimeout(() => {
+      const generateList = async () => {
+        setIsShoppingListLoading(true);
+        try {
+          const weekDates = new Set(Array.from({length: 7}, (_, i) => {
+            const d = new Date(currentWeekStart);
+            d.setDate(d.getDate() + i);
+            return d.toISOString().split('T')[0];
+          }));
+          
+          const recipesForWeek = mealPlan
+            .filter(item => weekDates.has(item.date) && item.recipe)
+            .map(item => item.recipe!);
+            
+          if (recipesForWeek.length === 0) {
+              setShoppingList(sl => sl.filter(i => !i.isGenerated)); // Clear generated items if no recipes
+              setIsShoppingListLoading(false);
+              return;
+          }
+
+          const inStockPantry = pantryItems.filter(i => i.inStock);
+
+          const generatedItems = await generateShoppingList(
+            recipesForWeek,
+            inStockPantry,
+            preferences.shoppingStores
+          );
+
+          setShoppingList(prevList => {
+            const manualItems = prevList.filter(i => !i.isGenerated);
+            const newGeneratedItems = generatedItems.map(newItem => {
               const oldItem = prevList.find(old => old.isGenerated && old.name.toLowerCase() === newItem.name.toLowerCase());
-              return oldItem ? { ...newItem, id: oldItem.id, isChecked: oldItem.isChecked } : newItem;
+              return { 
+                  ...newItem, 
+                  id: oldItem ? oldItem.id : uuidv4(),
+                  isGenerated: true,
+                  isChecked: oldItem ? oldItem.isChecked : false,
+              };
+            });
+            return [...manualItems, ...newGeneratedItems];
           });
-          return [...manualItems, ...newGeneratedItems];
-      });
-  }, [derivedShoppingList]);
+          
+        } catch (error) {
+          console.error("Failed to generate shopping list:", error);
+          // Maybe set an error state to show in the UI
+        } finally {
+          setIsShoppingListLoading(false);
+        }
+      };
+
+      generateList();
+    }, 1000); // 1 second debounce
+
+    setDebounceTimeout(timeoutId);
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [mealPlan, pantryItems, preferences.shoppingStores, currentWeekStart]);
   
 
   const handleToggleFavorite = useCallback((recipeId: string, mealDate?: string, mealType?: MealType, recipeToAdd?: Recipe) => {
@@ -154,11 +183,12 @@ function App() {
   }, [cookbook, mealPlan]);
 
   const handleGenerateTargetedMeals = async (day: Date, mealType: MealType, scope: 'This Meal Only' | 'All Meal Types' | 'Rest of Today', cookingMethod: string, timeAvailable: string, weekStart: Date) => {
-    // This function can be expanded with more complex logic.
     const slotKey = `${day.toISOString().split('T')[0]}-${mealType}`;
     setLoadingSlots(s => [...s, slotKey]);
     try {
-        const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, 1, cookingMethod, timeAvailable, weeklyPreferences);
+        const weekKey = weekStart.toISOString().split('T')[0];
+        const weeklyPrefsForGeneration = weeklyPreferencesByWeek[weekKey] || '';
+        const recipes = await generateTargetedRecipes(preferences, pantryItems, energyLevel, mealType, 1, cookingMethod, timeAvailable, weeklyPrefsForGeneration);
         if (recipes.length > 0) {
             const newMeal: MealPlanItem = { date: day.toISOString().split('T')[0], mealType, recipe: { ...recipes[0], isFavorite: cookbook.some(r => r.id === recipes[0].id) }, prepTasks: [] };
             setMealPlan(mp => [...mp.filter(m => m.date !== newMeal.date || m.mealType !== newMeal.mealType), newMeal]);
@@ -176,6 +206,9 @@ function App() {
       setFailedSlots({});
       const dateStrings = days.map(d => d.toISOString().split('T')[0]);
       let newMealPlan = mealPlan.filter(item => !dateStrings.includes(item.date));
+      
+      const currentWeekKey = currentWeekStart.toISOString().split('T')[0];
+      const weeklyPrefsForGeneration = weeklyPreferencesByWeek[currentWeekKey] || '';
 
       for (const mealType of ['Breakfast', 'Lunch', 'Snack', 'Dinner'] as MealType[]) {
         const planningPrefs = preferences.mealPlanning[mealType.toLowerCase() as keyof MealPlanningPreferences];
@@ -185,7 +218,7 @@ function App() {
         if (count === 0) continue;
 
         try {
-            const recipes = await generateRecipes(preferences, pantryItems, energyLevel, mealType, count, weeklyPreferences, planningPrefs.mode === 'batch');
+            const recipes = await generateRecipes(preferences, pantryItems, energyLevel, mealType, count, weeklyPrefsForGeneration, planningPrefs.mode === 'batch');
             const favoritedRecipes = recipes.map(r => ({ ...r, isFavorite: cookbook.some(cr => cr.id === r.id)}));
 
             if (planningPrefs.mode === 'batch') {
@@ -223,7 +256,16 @@ function App() {
           cookbook={cookbook}
           onToggleFavorite={handleToggleFavorite}
         />;
-      case View.MealPlan:
+      case View.MealPlan: {
+        const currentWeekKey = currentWeekStart.toISOString().split('T')[0];
+        const currentWeeklyPreferences = weeklyPreferencesByWeek[currentWeekKey] || '';
+        const setCurrentWeeklyPreferences = (prefs: string) => {
+          setWeeklyPreferencesByWeek(prev => ({
+            ...prev,
+            [currentWeekKey]: prefs
+          }));
+        };
+
         return <MealPlan 
           mealPlan={mealPlan}
           preferences={preferences}
@@ -233,23 +275,28 @@ function App() {
           onToggleFavorite={handleToggleFavorite}
           isLoading={isLoading}
           onGenerateToday={async () => {
-            const meals = await generateDayMeals(preferences, pantryItems, energyLevel, weeklyPreferences);
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Date();
+            const weekStartForToday = getStartOfWeekForDate(today);
+            const weekKey = weekStartForToday.toISOString().split('T')[0];
+            const weeklyPrefsForToday = weeklyPreferencesByWeek[weekKey] || '';
+
+            const meals = await generateDayMeals(preferences, pantryItems, energyLevel, weeklyPrefsForToday);
+            const todayString = new Date().toISOString().split('T')[0];
             const newItems: MealPlanItem[] = Object.entries(meals).map(([type, recipe]) => ({
-              date: today,
+              date: todayString,
               mealType: type.charAt(0).toUpperCase() + type.slice(1) as MealType,
               recipe: {...recipe, isFavorite: cookbook.some(r => r.id === recipe.id)},
               prepTasks: []
             }));
-            setMealPlan(mp => [...mp.filter(i => i.date !== today), ...newItems]);
+            setMealPlan(mp => [...mp.filter(i => i.date !== todayString), ...newItems]);
           }}
           onFillMealType={async (mealType, weekStart) => { /* implement */ }}
           onGenerateTargetedMeals={handleGenerateTargetedMeals}
           loadingSlots={loadingSlots}
           failedSlots={failedSlots}
           onClearFailedSlot={(slotKey) => setFailedSlots(fs => { const newFs = {...fs}; delete newFs[slotKey]; return newFs; })}
-          weeklyPreferences={weeklyPreferences}
-          setWeeklyPreferences={setWeeklyPreferences}
+          weeklyPreferences={currentWeeklyPreferences}
+          setWeeklyPreferences={setCurrentWeeklyPreferences}
           onUpdateBatchAssignments={(recipeId, mealType, newDates) => {
             setMealPlan(mp => {
               const otherMeals = mp.filter(item => item.recipe?.id !== recipeId || item.mealType !== mealType);
@@ -281,6 +328,7 @@ function App() {
             setMealPlan(mp => mp.filter(item => !dateStrings.has(item.date)));
           }}
         />;
+      }
       case View.Pantry:
         return <Pantry 
           pantryItems={pantryItems}
@@ -309,6 +357,7 @@ function App() {
           onUpdateItem={(id, updates) => setShoppingList(sl => sl.map(i => i.id === id ? {...i, ...updates} : i))}
           onDeleteItem={(id) => setShoppingList(sl => sl.filter(i => i.id !== id))}
           onClearChecked={() => setShoppingList(sl => sl.filter(i => !i.isChecked))}
+          isLoading={isShoppingListLoading}
         />;
       case View.Preferences:
         return <Preferences preferences={preferences} onSave={setPreferences} theme={theme} onThemeChange={setTheme} />;
@@ -316,6 +365,13 @@ function App() {
         return <FridgeRescue preferences={preferences} />;
       case View.Cookbook:
         return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;
+      case View.YouTubeSources:
+        return <YouTubeSources 
+            sources={preferences.youtubeSources}
+            onSourcesChange={(newSources: YouTubeSource[]) => {
+                setPreferences(p => ({ ...p, youtubeSources: newSources }));
+            }}
+        />;
       default:
         return <Dashboard 
           setCurrentView={setCurrentView}

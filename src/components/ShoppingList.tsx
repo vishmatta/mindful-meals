@@ -10,6 +10,7 @@ interface ShoppingListProps {
     onDeleteItem: (id: string) => void;
     onClearChecked: () => void;
     storeOptions: string[];
+    isLoading: boolean;
 }
 
 const StoreSelector: React.FC<{
@@ -125,7 +126,7 @@ const NewItemForm: React.FC<{
 };
 
 
-export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, onUpdateItem, onDeleteItem, onClearChecked, storeOptions }) => {
+export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, onUpdateItem, onDeleteItem, onClearChecked, storeOptions, isLoading }) => {
     const [showForm, setShowForm] = useState(false);
 
     const groupedItems = useMemo(() => {
@@ -137,6 +138,18 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, on
     }, [items]);
 
     const stores = Object.keys(groupedItems).sort();
+
+    if (isLoading) {
+        return (
+            <div className="p-4 sm:p-6 lg:p-8 flex justify-center items-center min-h-[60vh]">
+                <div className="text-center">
+                <Icon name="loading" className="mx-auto w-12 h-12 text-primary animate-spin" />
+                <h3 className="mt-2 text-lg font-medium text-text-primary font-heading">Generating Your List...</h3>
+                <p className="mt-1 text-sm text-text-secondary">Checking your pantry and meal plan.</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-8">
@@ -167,7 +180,7 @@ export const ShoppingList: React.FC<ShoppingListProps> = ({ items, onAddItem, on
                         <div key={store} className="bg-background-secondary rounded-lg shadow-sm">
                             <h2 className="px-6 py-3 text-lg font-semibold bg-background-primary border-b border-neutral-medium/20 rounded-t-lg font-heading">{store}</h2>
                             <ul className="divide-y divide-neutral-medium/20">
-                                {groupedItems[store].map((item) => (
+                                {groupedItems[store].sort((a,b) => a.name.localeCompare(b.name)).map((item) => (
                                     <li key={item.id} className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                                         <div className="flex items-center flex-grow">
                                             <input 

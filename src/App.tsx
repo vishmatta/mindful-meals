@@ -56,7 +56,13 @@ const getStartOfWeekForDate = (date: Date) => {
 function App() {
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+      return savedTheme;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
 
   // Load state from local storage or use initials
   const [preferences, setPreferences] = useState<DietaryPreferences>(() => JSON.parse(localStorage.getItem('preferences') || JSON.stringify(INITIAL_PREFERENCES)));
@@ -87,6 +93,7 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   // Generate shopping list from meal plan and pantry stock

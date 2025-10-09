@@ -11,7 +11,6 @@ import {
   ScannedItem,
   MealPlanningPreferences,
   PrepStep,
-  YouTubeSource,
 } from './types';
 import {
   INITIAL_PANTRY,
@@ -34,7 +33,6 @@ import { ShoppingList } from './components/ShoppingList';
 import { Preferences } from './components/Preferences';
 import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
-import { YouTubeSources } from './components/YouTubeSources';
 import { Icon } from './components/common/Icon';
 
 type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
@@ -93,8 +91,28 @@ function App() {
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
-    localStorage.setItem('theme', theme);
+    if (localStorage.getItem('theme') !== theme) {
+      localStorage.setItem('theme', theme);
+    }
   }, [theme]);
+
+  // Listen for changes in OS/browser theme preference
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const handleChange = (e: MediaQueryListEvent) => {
+      // Only update if the user hasn't made a manual selection in the app
+      if (!localStorage.getItem('theme')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener('change', handleChange);
+    };
+  }, []);
 
   // Generate shopping list from meal plan and pantry stock
   useEffect(() => {
@@ -367,18 +385,28 @@ function App() {
           isLoading={isShoppingListLoading}
         />;
       case View.Preferences:
-        return <Preferences preferences={preferences} onSave={setPreferences} theme={theme} onThemeChange={setTheme} />;
+        return <Preferences preferences={preferences} onSave={(newPrefs) => {
+            if (newPrefs.shoppingStores.toString() !== preferences.shoppingStores.toString()) {
+                // If stores change, re-evaluate custom stores in shopping list
+                const standardStores = new Set(newPrefs.shoppingStores);
+                setShoppingList(sl => sl.map(item => {
+                    if (!item.isGenerated && !standardStores.has(item.store)) {
+                        // Keep custom store value
+                        return item;
+                    }
+                     if (!standardStores.has(item.store)) {
+                        // Reset generated item's store to a default if it's no longer valid
+                        return {...item, store: newPrefs.shoppingStores[0] || 'Other'};
+                    }
+                    return item;
+                }));
+            }
+            setPreferences(newPrefs);
+        }} theme={theme} onThemeChange={setTheme} />;
       case View.FridgeRescue:
         return <FridgeRescue preferences={preferences} />;
       case View.Cookbook:
         return <Cookbook cookbook={cookbook} onToggleFavorite={handleToggleFavorite} />;
-      case View.YouTubeSources:
-        return <YouTubeSources 
-            sources={preferences.youtubeSources}
-            onSourcesChange={(newSources: YouTubeSource[]) => {
-                setPreferences(p => ({ ...p, youtubeSources: newSources }));
-            }}
-        />;
       default:
         return <Dashboard 
           setCurrentView={setCurrentView}

@@ -1,5 +1,6 @@
 import React from 'react';
-import { DietaryPreferences, MealPlanningMode, MealPlanningPreferences, YouTubeSource } from '../types';
+// Fix: Removed unused import 'YouTubeSource' from '../types' as it is not an exported member.
+import { DietaryPreferences, MealPlanningMode, MealPlanningPreferences } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 

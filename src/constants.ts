@@ -44,7 +44,6 @@ export const INITIAL_PREFERENCES: DietaryPreferences = {
   },
   zipCode: '',
   storeRadius: 5,
-  youtubeSources: [],
 };
 
 export const INITIAL_PANTRY: Ingredient[] = [
@@ -256,7 +255,6 @@ export const NAV_ITEMS = [
   { view: View.Dashboard, label: 'Dashboard', icon: 'home' },
   { view: View.MealPlan, label: 'Meal Plan', icon: 'calendar' },
   { view: View.Cookbook, label: 'My Cookbook', icon: 'book-open' },
-  { view: View.YouTubeSources, label: 'YouTube Sources', icon: 'upload' },
   { view: View.Pantry, label: 'Pantry', icon: 'pantry' },
   { view: View.ShoppingList, label: 'Shopping List', icon: 'list' },
   { view: View.FridgeRescue, label: 'Fridge Rescue', icon: 'rescue' },

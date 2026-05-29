@@ -49,9 +49,9 @@ How much energy you have directly dictates what you eat. Log your energy status 
 *   **Frontend:** React (Single Page Application), TypeScript, Tailwind CSS (via customizable CDN config).
 *   **Backend:** Node.js, Express.
 *   **AI Integration:** Google Gemini API (`gemini-2.5-flash`) via the official `@google/genai` SDK.
-*   **Proxy Security & Interception:**
-    *   An Express rate-limited proxy (`/api-proxy`) handles all outgoing HTTP requests and WebSocket upgrades, ensuring Gemini API keys remain secure on the server side.
-    *   A custom Service Worker (`service-worker.js`) and WebSocket Interceptor (`websocket-interceptor.js`) intercept frontend requests and route them automatically through the server proxy.
+*   **API Security:**
+    *   All Gemini API calls are made server-side through dedicated Express routes (`/api/recipes/generate`, `/api/fridge/rescue`, `/api/receipts/scan`, `/api/shopping-list/generate`). The `GEMINI_API_KEY` is only ever read from server environment variables — it is never bundled into the client.
+    *   A rate limiter is applied to all `/api` routes to prevent abuse.
 *   **Deployment:** Docker multi-stage build, Google Cloud Build (`cloudbuild.yaml`), Google Cloud Run.
 
 ---
@@ -63,13 +63,14 @@ How much energy you have directly dictates what you eat. Log your energy status 
 *   A Gemini API Key (obtain from [Google AI Studio](https://aistudio.google.com/))
 
 ### 1. Set Up Environment Variables
-Create a `.env` file in the root directory:
+Create a `.env` file inside the `server/` directory:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
+> **Security note:** The API key must only be set on the server. Do **not** add it to any root-level `.env` or Vite config — it should never be bundled into the client.
+
 ### 2. Install Dependencies
-Run `npm install` in both the root directory (for frontend development) and the server directory (for proxy operations):
 ```bash
 # Install root (frontend) dependencies
 npm install
@@ -82,29 +83,23 @@ cd ..
 
 ### 3. Run the App
 
-#### Option A: Full Local Proxy Setup (Recommended)
-This runs the Express server as a proxy, serves the static build, and allows full functionality including the receipt scanner and fridge rescue.
+#### Option A: Full Setup (Recommended)
+Build the frontend and run the Express server, which serves the static build and handles all AI requests.
 ```bash
 # 1. Build the frontend
 npm run build
 
-# 2. Start the proxy server
+# 2. Start the server
 cd server
 npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-#### Option B: Frontend Dev Server (Vite / Webpack)
-If you are only editing the React UI and styles, you can run the dev server directly.
-To run via Webpack (using `react-scripts`):
-```bash
-npm start
-```
-To run via Vite:
+#### Option B: Frontend Dev Server (Vite)
+If you are only editing the React UI, you can run the Vite dev server directly. AI features will not work without the backend running.
 ```bash
 npx vite
 ```
-*Note: Make sure your `GEMINI_API_KEY` is defined in your terminal or a `.env.local` file for direct client-side requests.*
 
 ---
 

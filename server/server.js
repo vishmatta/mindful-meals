@@ -12,11 +12,12 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
 const staticPath = path.join(__dirname,'dist');
 const publicPath = path.join(__dirname,'public');
 
-if (!(process.env.GEMINI_API_KEY || process.env.API_KEY)) {
+if (!apiKey) {
     console.error("Warning: GEMINI_API_KEY environment variable is not set! AI endpoints will return errors.");
 }
 

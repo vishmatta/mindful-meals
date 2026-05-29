@@ -60,10 +60,16 @@ The backend runs from the `server/` directory.
    cd server
    npm install
    ```
-2. Start the backend in development mode (runs with `nodemon` for auto-reloading):
+2. Configure environment variables in `server/.env`. Make sure to set a custom port (e.g. `PORT=3001`) to avoid conflict with Vite:
+   ```env
+   GEMINI_API_KEY=your_gemini_api_key_here
+   PORT=3001
+   ```
+3. Start the backend in development mode (runs with `nodemon` for auto-reloading):
    ```bash
    npm run dev
    ```
+   *Note: The frontend dev server (Vite on port 3000) is preconfigured to proxy `/api` requests to the backend on `http://localhost:3001`.*
 
 ---
 

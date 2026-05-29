@@ -72,7 +72,7 @@ Secrets must only live on the server to prevent exposing keys on the client.
 2. Configure your keys:
    ```env
    GEMINI_API_KEY=your_gemini_api_key_here
-   PORT=3000
+   PORT=3001
    ```
 3. Install dependencies:
    ```bash
@@ -93,11 +93,11 @@ Use the following exact commands to build, test, and run the project:
 
 | Task | Command | Directory | Description |
 |---|---|---|---|
-| **Start Backend Dev Server** | `npm run dev` | `./server` | Runs Express with `nodemon` auto-reload. |
-| **Start Frontend Dev Server** | `npm start` | Root (`.`) | Runs the Vite server. *Note: AI features require the Backend to be running.* |
+| **Start Backend Dev Server** | `npm run dev` | `./server` | Runs Express with `nodemon` on port 3001. |
+| **Start Frontend Dev Server** | `npm start` | Root (`.`) | Runs the Vite server on port 3000. Proxies `/api` to port 3001. |
 | **Build Frontend** | `npm run build` | Root (`.`) | Builds frontend assets to `./dist` and copies them to `./server/dist/`. |
 | **Run Tests** | `npm test` | Root (`.`) | Runs test suites via `react-scripts test`. |
-| **Run Production Server** | `npm start` | `./server` | Runs the server in production mode using `node server.js`. |
+| **Run Production Server** | `npm start` | `./server` | Runs the Express server in production mode on port 3000 (serves static frontend and API). |
 
 > [!IMPORTANT]
 > The frontend production build (`npm run build`) **must** pass and be copied into `./server/dist` before deploying, as the Express server serves assets from there.

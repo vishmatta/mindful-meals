@@ -66,6 +66,7 @@ How much energy you have directly dictates what you eat. Log your energy status 
 Create a `.env` file inside the `server/` directory:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
+PORT=3001
 ```
 
 > **Security note:** The API key must only be set on the server. Do **not** add it to any root-level `.env` or Vite config — it should never be bundled into the client.
@@ -83,23 +84,30 @@ cd ..
 
 ### 3. Run the App
 
-#### Option A: Full Setup (Recommended)
-Build the frontend and run the Express server, which serves the static build and handles all AI requests.
+#### Option A: Build and Serve (Production/Offline Simulation)
+Build the frontend and run the Express server, which serves the static build and handles all AI requests on port 3000.
 ```bash
 # 1. Build the frontend
 npm run build
 
 # 2. Start the server
 cd server
-npm run dev
+npm start
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000) in your browser. Note: In this mode, the server ignores the `PORT=3001` setting if set, unless run with a port environment variable override, since it serves static files directly on port 3000.
 
-#### Option B: Frontend Dev Server (Vite)
-If you are only editing the React UI, you can run the Vite dev server directly. AI features will not work without the backend running.
-```bash
-npx vite
-```
+#### Option B: Vite Dev Server with Express Backend (Full Dev Mode with Hot Reloading)
+This setup allows you to edit frontend React files with hot reloading while maintaining backend AI integrations.
+1. Start the backend dev server (runs nodemon on port 3001):
+   ```bash
+   cd server
+   npm run dev
+   ```
+2. In a separate terminal tab, start the Vite dev server in the project root (runs on port 3000):
+   ```bash
+   npm start
+   ```
+Open [http://localhost:3000](http://localhost:3000) in your browser. Vite is preconfigured via `vite.config.ts` to proxy all `/api` calls to the Express server running on port 3001.
 
 ---
 

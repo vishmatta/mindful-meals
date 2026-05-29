@@ -85,7 +85,7 @@ cd ..
 ### 3. Run the App
 
 #### Option A: Build and Serve (Production/Offline Simulation)
-Build the frontend and run the Express server, which serves the static build and handles all AI requests on port 3000.
+Build the frontend and run the Express server, which serves the static build and handles all AI requests.
 ```bash
 # 1. Build the frontend
 npm run build
@@ -94,7 +94,7 @@ npm run build
 cd server
 npm start
 ```
-Open [http://localhost:3000](http://localhost:3000) in your browser. Note: In this mode, the server ignores the `PORT=3001` setting if set, unless run with a port environment variable override, since it serves static files directly on port 3000.
+Open the URL printed in the server log (e.g., `http://localhost:3001` if `PORT=3001` is set in `server/.env`, or `http://localhost:3000` by default) in your browser.
 
 #### Option B: Vite Dev Server with Express Backend (Full Dev Mode with Hot Reloading)
 This setup allows you to edit frontend React files with hot reloading while maintaining backend AI integrations.

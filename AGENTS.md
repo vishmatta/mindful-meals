@@ -97,7 +97,7 @@ Use the following exact commands to build, test, and run the project:
 | **Start Frontend Dev Server** | `npm start` | Root (`.`) | Runs the Vite server on port 3000. Proxies `/api` to port 3001. |
 | **Build Frontend** | `npm run build` | Root (`.`) | Builds frontend assets to `./dist` and copies them to `./server/dist/`. |
 | **Run Tests** | `npm test` | Root (`.`) | Runs test suites via `react-scripts test`. |
-| **Run Production Server** | `npm start` | `./server` | Runs the Express server in production mode on port 3000 (serves static frontend and API). |
+| **Run Production Server** | `npm start` | `./server` | Runs the Express server in production mode (serves static frontend and API on the port configured in process.env.PORT, defaulting to 3000). |
 
 > [!IMPORTANT]
 > The frontend production build (`npm run build`) **must** pass and be copied into `./server/dist` before deploying, as the Express server serves assets from there.

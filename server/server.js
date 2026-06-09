@@ -43,70 +43,19 @@ const aiRoutes = require('./routes/ai');
 app.use('/api', apiLimiter);
 app.use('/api', aiRoutes);
 
-const webSocketInterceptorScriptTag = `<script src="/public/websocket-interceptor.js" defer></script>`;
-
-// Prepare service worker registration script content
-const serviceWorkerRegistrationScript = `
-<script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load' , () => {
-    navigator.serviceWorker.register('./service-worker.js')
-      .then(registration => {
-        console.log('Service Worker registered successfully with scope:', registration.scope);
-      })
-      .catch(error => {
-        console.error('Service Worker registration failed:', error);
-      });
-  });
-} else {
-  console.log('Service workers are not supported in this browser.');
-}
-</script>
-`;
-
-// Serve index.html or placeholder based on API key and file availability
+// Serve index.html or placeholder based on file availability
 app.get('/', (req, res) => {
     const placeholderPath = path.join(publicPath, 'placeholder.html');
-
-    // Try to serve index.html
-    console.log("LOG: Route '/' accessed. Attempting to serve index.html.");
     const indexPath = path.join(staticPath, 'index.html');
 
-    fs.readFile(indexPath, 'utf8', (err, indexHtmlData) => {
+    // Attempt to serve index.html
+    res.sendFile(indexPath, (err) => {
         if (err) {
             // index.html not found or unreadable, serve the original placeholder
             console.log('LOG: index.html not found or unreadable. Falling back to original placeholder.');
-            return res.sendFile(placeholderPath);
+            res.sendFile(placeholderPath);
         }
-
-        // If API key is not set, serve original HTML without injection
-        if (!apiKey) {
-          console.log("LOG: API key not set. Serving original index.html without script injections.");
-          return res.sendFile(indexPath);
-        }
-
-        // index.html found and apiKey set, inject scripts
-        console.log("LOG: index.html read successfully. Injecting scripts.");
-        let injectedHtml = indexHtmlData;
-
-
-        if (injectedHtml.includes('<head>')) {
-            // Inject WebSocket interceptor first, then service worker script
-            injectedHtml = injectedHtml.replace(
-                '<head>',
-                `<head>${webSocketInterceptorScriptTag}${serviceWorkerRegistrationScript}`
-            );
-            console.log("LOG: Scripts injected into <head>.");
-        } else {
-            console.warn("WARNING: <head> tag not found in index.html. Prepending scripts to the beginning of the file as a fallback.");
-            injectedHtml = `${webSocketInterceptorScriptTag}${serviceWorkerRegistrationScript}${indexHtmlData}`;
-        }
-        res.send(injectedHtml);
     });
-});
-
-app.get('/service-worker.js', (req, res) => {
-   return res.sendFile(path.join(publicPath, 'service-worker.js'));
 });
 
 app.use('/public', express.static(publicPath));

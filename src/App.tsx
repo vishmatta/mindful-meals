@@ -51,48 +51,113 @@ const getStartOfWeekForDate = (date: Date) => {
     return new Date(new Date(d.setDate(diff)).setHours(0, 0, 0, 0));
 };
 
+function safeGetLocalStorage<T>(key: string, defaultValue: T): T {
+  try {
+    const item = localStorage.getItem(key);
+    if (!item) return defaultValue;
+    return JSON.parse(item) as T;
+  } catch (error) {
+    console.error(`Error reading localStorage key "${key}":`, error);
+    try {
+      localStorage.removeItem(key);
+    } catch (removeError) {
+      console.error(`Error removing corrupted localStorage key "${key}":`, removeError);
+    }
+    return defaultValue;
+  }
+}
+
 function App() {
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') {
-      return savedTheme;
+    try {
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'light' || savedTheme === 'dark') {
+        return savedTheme;
+      }
+    } catch (error) {
+      console.error('Error reading theme from localStorage:', error);
     }
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   // Load state from local storage or use initials
-  const [preferences, setPreferences] = useState<DietaryPreferences>(() => JSON.parse(localStorage.getItem('preferences') || JSON.stringify(INITIAL_PREFERENCES)));
-  const [pantryItems, setPantryItems] = useState<Ingredient[]>(() => JSON.parse(localStorage.getItem('pantry') || JSON.stringify(INITIAL_PANTRY)));
-  const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(() => JSON.parse(localStorage.getItem('mealPlan') || JSON.stringify(INITIAL_MEAL_PLAN)));
-  const [cookbook, setCookbook] = useState<Recipe[]>(() => JSON.parse(localStorage.getItem('cookbook') || '[]'));
+  const [preferences, setPreferences] = useState<DietaryPreferences>(() => safeGetLocalStorage('preferences', INITIAL_PREFERENCES));
+  const [pantryItems, setPantryItems] = useState<Ingredient[]>(() => safeGetLocalStorage('pantry', INITIAL_PANTRY));
+  const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(() => safeGetLocalStorage('mealPlan', INITIAL_MEAL_PLAN));
+  const [cookbook, setCookbook] = useState<Recipe[]>(() => safeGetLocalStorage('cookbook', []));
   
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState<string[]>([]);
   const [failedSlots, setFailedSlots] = useState<Record<string, string>>({});
-  const [weeklyPreferencesByWeek, setWeeklyPreferencesByWeek] = useState<Record<string, string>>(() => JSON.parse(localStorage.getItem('weeklyPreferencesByWeek') || '{}'));
+  const [weeklyPreferencesByWeek, setWeeklyPreferencesByWeek] = useState<Record<string, string>>(() => safeGetLocalStorage('weeklyPreferencesByWeek', {}));
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getStartOfWeek());
   const [weekDaySelections, setWeekDaySelections] = useState<Record<string, number[]>>({});
-  const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>(() => JSON.parse(localStorage.getItem('shoppingList') || '[]'));
+  const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>(() => safeGetLocalStorage('shoppingList', []));
   const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
   const [debounceTimeout, setDebounceTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // Persist state to local storage
-  useEffect(() => { localStorage.setItem('preferences', JSON.stringify(preferences)); }, [preferences]);
-  useEffect(() => { localStorage.setItem('pantry', JSON.stringify(pantryItems)); }, [pantryItems]);
-  useEffect(() => { localStorage.setItem('mealPlan', JSON.stringify(mealPlan)); }, [mealPlan]);
-  useEffect(() => { localStorage.setItem('cookbook', JSON.stringify(cookbook)); }, [cookbook]);
-  useEffect(() => { localStorage.setItem('shoppingList', JSON.stringify(shoppingList)); }, [shoppingList]);
-  useEffect(() => { localStorage.setItem('weeklyPreferencesByWeek', JSON.stringify(weeklyPreferencesByWeek)); }, [weeklyPreferencesByWeek]);
+  useEffect(() => {
+    try {
+      localStorage.setItem('preferences', JSON.stringify(preferences));
+    } catch (error) {
+      console.error('Error writing preferences to localStorage:', error);
+    }
+  }, [preferences]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('pantry', JSON.stringify(pantryItems));
+    } catch (error) {
+      console.error('Error writing pantry to localStorage:', error);
+    }
+  }, [pantryItems]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('mealPlan', JSON.stringify(mealPlan));
+    } catch (error) {
+      console.error('Error writing mealPlan to localStorage:', error);
+    }
+  }, [mealPlan]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cookbook', JSON.stringify(cookbook));
+    } catch (error) {
+      console.error('Error writing cookbook to localStorage:', error);
+    }
+  }, [cookbook]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
+    } catch (error) {
+      console.error('Error writing shoppingList to localStorage:', error);
+    }
+  }, [shoppingList]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('weeklyPreferencesByWeek', JSON.stringify(weeklyPreferencesByWeek));
+    } catch (error) {
+      console.error('Error writing weeklyPreferencesByWeek to localStorage:', error);
+    }
+  }, [weeklyPreferencesByWeek]);
   
   // Theme management
   useEffect(() => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
-    if (localStorage.getItem('theme') !== theme) {
-      localStorage.setItem('theme', theme);
+    try {
+      if (localStorage.getItem('theme') !== theme) {
+        localStorage.setItem('theme', theme);
+      }
+    } catch (error) {
+      console.error('Error writing theme to localStorage:', error);
     }
   }, [theme]);
 
@@ -102,8 +167,12 @@ function App() {
     
     const handleChange = (e: MediaQueryListEvent) => {
       // Only update if the user hasn't made a manual selection in the app
-      if (!localStorage.getItem('theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
+      try {
+        if (!localStorage.getItem('theme')) {
+          setTheme(e.matches ? 'dark' : 'light');
+        }
+      } catch (error) {
+        console.error('Error checking theme in localStorage:', error);
       }
     };
 

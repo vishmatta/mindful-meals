@@ -34,9 +34,7 @@ mindful-meals/
 │   ├── package.json             # Server-specific dependencies
 │   ├── routes/                  # Express API routes
 │   │   └── ai.js                # AI logic, prompts, and schema structures (Gemini API)
-│   └── public/                  # Backend public static assets
-│       ├── service-worker.js    # Service worker cache and fetch handler
-│       └── websocket-interceptor.js # Utility injected into page head by the server
+│   └── public/                  # Backend public static assets (empty)
 ├── src/                         # React Frontend Client source
 │   ├── App.tsx                  # Main client component (manages global state and routing)
 │   ├── types.ts                 # Common TypeScript interfaces and enums
@@ -130,7 +128,7 @@ graph TD
 ```
 
 ### Data Synchronization & Injections
-1.  **HTML Modification:** When a user requests `/`, the Express server reads `dist/index.html`, injects a service worker script and a WebSocket interceptor script tag into the `<head>` dynamically, and returns the modified HTML.
+1.  **Static Serving:** When a user requests `/`, the Express server serves `dist/index.html` directly without any script injections.
 2.  **Shopping List Generation:** The shopping list is automatically generated client-side by comparing required recipe ingredients against in-stock pantry items, debounced by 1 second on any change in state.
 
 ### AI Integration Endpoints

@@ -76,17 +76,12 @@ The shopping list is computed client-side by comparing the list of ingredients r
 
 ---
 
-## 4. Backend Injections & Interceptors
+## 4. Backend Injections & Interceptors (Removed)
 
-### Dynamic HTML Modification
-When a user requests the root page (`/`), the Express server (`server/server.js`) reads the compiled `index.html` file from disk and performs regex-based injection before sending the response to the browser.
-*   **WebSocket Interceptor:** A utility script (`websocket-interceptor.js`) is injected into the `<head>` of the page to handle hot-reloads and sync signals.
-*   **Service Worker:** A script tag registering `service-worker.js` is injected to enable offline/caching features.
-
-### Architectural Note: Dead API Proxying
-In earlier architectures, the frontend made direct Gemini API calls, and `service-worker.js` intercepted requests directed at `generativelanguage.googleapis.com` to reroute them through a local `/api-proxy`.
-*   **Current State:** All Gemini API interactions are executed strictly server-side through the `/api/ai/*` routes.
-*   **Clean-up Directive:** The `/api-proxy` is dead code. The service worker intercept configuration is vestigial. The injections are undergoing cleanup to remove the unused service worker files and script injection templates in `server.js` (Item 3 in code review).
+### Removal of Injections & Service Worker
+The service worker intercept configuration, websocket interceptor, and index.html regex script injection logic have been completely cleaned up and removed.
+*   **Direct Serving:** The Express server (`server/server.js`) now serves static files directly from `dist/index.html` using standard file delivery mechanisms without dynamic injections or payload mutations.
+*   **API Security:** All requests to Gemini run securely on the server-side, eliminating any need to intercept or proxy client-side Google API requests.
 
 ---
 

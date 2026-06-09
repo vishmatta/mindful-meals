@@ -148,8 +148,8 @@ We practice trunk-based development on the `main` branch.
     *   Chore/Refactoring branches: `chore/<short-description>`
     *   AI Agent branches: `agent/<task-id-or-short-description>`
 *   **Commit Message Convention:**
-    *   All agent commits must start with `[agent]` (e.g., `[agent] fix: resolve null reference in cookbook filter`).
-    *   Standard format: `<type>: <short summary>`.
+    *   All agent commits must start with `[agent]` (e.g., `[agent] fix(cookbook): resolve null reference in cookbook filter`).
+    *   Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification (e.g., `[agent] <type>[optional scope]: <description>`).
 *   **Pull Requests:**
     *   PR titles must start with `[Agent]` if created by an AI agent.
     *   Write a thorough description detailing what task triggered the change, modified files, assumptions, and points of uncertainty.

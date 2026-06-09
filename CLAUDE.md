@@ -76,8 +76,8 @@ This document outlines common commands, code style guidelines, and architecture 
 - Access routes via the client-side `src/services/geminiService.ts`. Do not store or use `GEMINI_API_KEY` on the client side.
 
 ### Git Conventions
-- Start all agent commit messages with `[agent]` (e.g., `[agent] fix: resolve null reference in cookbook filter`).
-- Standard format: `<type>: <short summary>`.
+- Start all agent commit messages with `[agent]` (e.g., `[agent] fix(cookbook): resolve null reference in cookbook filter`).
+- Follow the [Conventional Commits](https://www.conventionalcommits.org/) specification: `[agent] <type>[optional scope]: <description>`.
 - Branch naming:
   - Features: `feature/<short-description>`
   - Fixes: `fix/<short-description>`

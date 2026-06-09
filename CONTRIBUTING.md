@@ -121,20 +121,28 @@ git checkout -b feature/your-feature-name
 ## Making Changes
 
 1. **Make focused commits.** Each commit should represent one logical change.
-2. **Write clear commit messages** using the format:
+2. **Write clear commit messages** following the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
    ```
-   <type>: <short summary>
+   <type>[optional scope]: <description>
 
-   Optional longer description explaining what changed and why.
+   [optional body]
+
+   [optional footer(s)]
    ```
 
-   Common types: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`
+   Common types:
+   - `feat`: A new feature
+   - `fix`: A bug fix
+   - `docs`: Documentation only changes
+   - `refactor`: A code change that neither fixes a bug nor adds a feature
+   - `test`: Adding missing tests or correcting existing tests
+   - `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
 
    **Examples:**
    ```
-   feat: add email validation on sign-up form
-   fix: resolve race condition in job queue
+   feat(auth): add email validation on sign-up form
+   fix(queue): resolve race condition in job queue
    docs: update README with setup instructions
    ```
 

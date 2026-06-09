@@ -80,17 +80,19 @@ Keep branch names lowercase, use hyphens (no spaces or underscores), and prefix 
 ## 4. Commit & Pull Request Standards
 
 ### Commit Messages
-Commits should be focused on one logical change. Commit messages must follow this structure:
+Commits should be focused on one logical change. Commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 ```
-<type>: <short summary>
+<type>[optional scope]: <description>
 
-[Optional longer description of what changed and why]
+[optional body]
+
+[optional footer(s)]
 ```
-Allowed types: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
+Allowed types include: `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 
 *Example:*
 ```bash
-git commit -m "fix: resolve local storage parsing crash on corrupt json"
+git commit -m "fix(storage): resolve local storage parsing crash on corrupt json"
 ```
 
 ### Pull Requests (PR)

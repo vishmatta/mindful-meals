@@ -28,3 +28,6 @@ dist-ssr
 
 # Local scratch directory
 scratch/
+
+# local plans folder
+plans/

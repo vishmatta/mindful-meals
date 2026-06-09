@@ -124,3 +124,10 @@ docker run -p 3000:3000 -e GEMINI_API_KEY="your_api_key" mindful-meals
 ```
 
 The repository also includes `cloudbuild.yaml` for setting up automated deployments to Google Cloud Run via Google Cloud Build.
+
+---
+
+## 📚 Developer Documentation
+
+For detailed guides on frontend/backend coding standards, system architecture diagrams, AI prompt safety guidelines, and developer workflows, see the dedicated [Documentation Index (docs/)](docs/README.md) directory.
+

@@ -24,6 +24,8 @@ Click any file below to jump directly to that section:
     *   Gemini SDK usage and schema alignment with TypeScript models.
     *   Prompt injection mitigation (delimiting and sanitizing user inputs).
     *   Handling resource IDs (client-side UUIDs vs. AI-generated keys).
+*   **[README Standards](standards/readme-standard.md)**
+    *   Sub-folder README template, guidelines, and navigation design.
 
 ### 🏛️ System & Architecture
 *   **[System Architecture](architecture.md)**

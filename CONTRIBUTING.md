@@ -2,6 +2,8 @@
 
 This document outlines how to contribute to this repository — whether you're a developer or an AI agent. Follow these conventions to keep the codebase clean and history readable.
 
+For detailed engineering standards and coding rules, please review the [Documentation Index (docs/)](docs/README.md) before submitting changes.
+
 ---
 
 ## Table of Contents

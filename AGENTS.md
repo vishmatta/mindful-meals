@@ -2,6 +2,8 @@
 
 Welcome! This document provides technical context, codebase conventions, and operational guidelines for AI agents and developers working on the **Mindful Meals** repository.
 
+For strict, detailed engineering standards addressing codebase improvements (including safety, type cleanliness, and AI prompting rules), refer to the new [Documentation Index (docs/)](docs/README.md) before making edits.
+
 ---
 
 ## 📌 Project Overview

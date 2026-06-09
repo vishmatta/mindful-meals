@@ -1,0 +1,99 @@
+# 🏛️ System Architecture
+
+This document details the high-level architecture, client-server communications, state synchronization strategies, and integration points for **Mindful Meals**.
+
+---
+
+## 📋 Table of Contents
+1. [System Topology](#1-system-topology)
+2. [Client-Server Communication & Routing](#2-client-server-communication--routing)
+3. [Client State & Data Synchronization](#3-client-state--data-synchronization)
+4. [Backend Injections & Interceptors](#4-backend-injections--interceptors)
+5. [Shared Constants Architecture](#5-shared-constants-architecture)
+
+---
+
+## 1. System Topology
+
+Mindful Meals is designed as a lightweight Single Page Application (SPA) backed by a Node/Express proxy layer that interfaces safely with the Google Gemini API.
+
+```mermaid
+graph TD
+    subgraph Client [Client Browser]
+        React[React Client / App.tsx]
+        LS[(Local Storage Cache)]
+        React <--> LS
+    end
+
+    subgraph Server [Backend / Express]
+        Express[Express Server / server.js]
+        AIRouter[AI Router / routes/ai.js]
+        Express --> AIRouter
+    end
+
+    subgraph External [External Services]
+        Gemini[Google Gemini API]
+    end
+
+    React <-->|Fetch API Requests| Express
+    AIRouter <-->|Official SDK / JSON Schemas| Gemini
+```
+
+---
+
+## 2. Client-Server Communication & Routing
+
+### Development Environment Routing
+During local development, two servers run concurrently:
+1.  **Frontend Dev Server (Vite):** Runs on port `3000`. Serves hot-reloading frontend assets.
+2.  **Backend Dev Server (Node/Nodemon):** Runs on port `3001`. Serves API routes.
+*   **Proxy Configuration:** `vite.config.ts` is configured to proxy all `/api` requests to `http://localhost:3001`. This avoids Cross-Origin Resource Sharing (CORS) complications during development.
+
+### Production Environment Routing
+In production, a single container hosts the entire application on the port specified by `process.env.PORT` (defaults to `3000` or `3001`).
+*   **Static Serving:** The Express server (`server.js`) hosts the compiled frontend assets from the `./dist` (copied to `./server/dist`) folder.
+*   **API Hosting:** Requests targeting `/api/*` are captured by server routes, while all other requests fall back to serving `index.html` (supporting SPA routing).
+
+---
+
+## 3. Client State & Data Synchronization
+
+### Persistent Core State
+Mindful Meals stores all user data client-side in the browser's `localStorage`. The global React state is managed inside [src/App.tsx](../src/App.tsx) and synchronized on modifications.
+
+The core states include:
+*   `preferences`: Dietary restrictions, customized shopping stores, and calendar views.
+*   `pantryItems`: Checklist of ingredients, in-stock state, and categorizations.
+*   `mealPlan`: Active week recipes mapped by day and meal type.
+*   `shoppingList`: Dynamic consolidated list of grocery items.
+*   `cookbook`: Favorite saved recipes.
+
+### Shopping List Generation
+The shopping list is computed client-side by comparing the list of ingredients required by the active `mealPlan` recipes against the items checked as "in-stock" in the `pantryItems`.
+1.  **Aggregation:** Quantities and units are normalized and summed.
+2.  **Exclusion:** Items marked "in-stock" in the pantry checklist are excluded from the shopping list automatically.
+3.  **Store Mapping:** Grocery items are categorized and mapped to the preferred retail stores defined in `preferences.shoppingStores`.
+
+---
+
+## 4. Backend Injections & Interceptors
+
+### Dynamic HTML Modification
+When a user requests the root page (`/`), the Express server (`server/server.js`) reads the compiled `index.html` file from disk and performs regex-based injection before sending the response to the browser.
+*   **WebSocket Interceptor:** A utility script (`websocket-interceptor.js`) is injected into the `<head>` of the page to handle hot-reloads and sync signals.
+*   **Service Worker:** A script tag registering `service-worker.js` is injected to enable offline/caching features.
+
+### Architectural Note: Dead API Proxying
+In earlier architectures, the frontend made direct Gemini API calls, and `service-worker.js` intercepted requests directed at `generativelanguage.googleapis.com` to reroute them through a local `/api-proxy`.
+*   **Current State:** All Gemini API interactions are executed strictly server-side through the `/api/ai/*` routes.
+*   **Clean-up Directive:** The `/api-proxy` is dead code. The service worker intercept configuration is vestigial. The injections are undergoing cleanup to remove the unused service worker files and script injection templates in `server.js` (Item 3 in code review).
+
+---
+
+## 5. Shared Constants Architecture
+
+### Shared Configuration File
+To prevent drift between client interfaces and server validations, shared constants must be extracted into single-source files in the repository root.
+*   **Example:** `shared/pantry-categories.json` stores the master list of 21 pantry categories (e.g. `Produce`, `Pantry Staples`, `Spices`).
+*   **Backend Import:** The Node backend loads the constants using CommonJS `require()`.
+*   **Frontend Import:** The Vite compiler resolves and bundles the constants using ESM `import` statements.

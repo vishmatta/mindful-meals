@@ -1,6 +1,6 @@
 # CLAUDE.md - Developer Guide
 
-This document outlines common commands, code style guidelines, and architecture conventions for the **Mindful Meals** project.
+This document outlines common commands, code style guidelines, and architecture conventions for the **Mindful Meals** project. For comprehensive engineering standards, design decisions, and system architecture guides, refer to the main [Documentation Index (docs/)](docs/README.md).
 
 ## Development & Build Commands
 

@@ -7,6 +7,7 @@ import { Icon } from './common/Icon';
 import { PANTRY_CATEGORIES } from '../constants';
 import { scanReceipt } from '../services/geminiService';
 import { Modal } from './common/Modal';
+import { fileToGenerativePart } from '../utils/imageToGenerativePart';
 
 interface PantryProps {
     pantryItems: Ingredient[];
@@ -16,18 +17,6 @@ interface PantryProps {
     onUpdateItem: (id: string, updates: { name: string; category: string }) => void;
     onBatchUpdate: (items: ScannedItem[]) => void;
 }
-
-const fileToGenerativePart = (file: File): Promise<{ base64: string; mimeType: string }> => {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = (reader.result as string).split(',')[1];
-      resolve({ base64, mimeType: file.type });
-    };
-    reader.readAsDataURL(file);
-  });
-};
-
 
 const NewItemForm: React.FC<{ onAddItem: (item: { name: string, category: string }) => void; closeForm: () => void }> = ({ onAddItem, closeForm }) => {
     const [name, setName] = useState('');
@@ -202,10 +191,12 @@ const ReviewScannedItemsModal: React.FC<{
         }
     }, [initialItems]);
 
-    const handleItemChange = (index: number, field: keyof ScannedItem, value: any) => {
-        const newItems = [...reviewedItems];
-        (newItems[index] as any)[field] = value;
-        setReviewedItems(newItems);
+    const handleItemChange = <K extends keyof ScannedItem>(index: number, field: K, value: ScannedItem[K]) => {
+        setReviewedItems(prev => {
+            const newItems = [...prev];
+            newItems[index] = { ...newItems[index], [field]: value };
+            return newItems;
+        });
     };
     
     const handleConfirm = () => {

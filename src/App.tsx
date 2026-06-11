@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DietaryPreferences,
@@ -11,6 +11,7 @@ import {
   ScannedItem,
   MealPlanningPreferences,
   PrepStep,
+  MealType,
 } from './types';
 import {
   INITIAL_PANTRY,
@@ -35,7 +36,6 @@ import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
 
-type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 const getStartOfWeek = () => {
   const now = new Date();
@@ -67,6 +67,43 @@ function safeGetLocalStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
+function normalizeRecipe(recipe: unknown): Recipe | null {
+  if (!recipe || typeof recipe !== 'object') return null;
+  const r = recipe as Record<string, unknown>;
+  return {
+    ...r,
+    id: typeof r.id === 'string' ? r.id : uuidv4(),
+    cookingMethod: typeof r.cookingMethod === 'string' ? r.cookingMethod : 'Any Method',
+    substitutions: Array.isArray(r.substitutions) ? r.substitutions : [],
+  } as Recipe;
+}
+
+function normalizeMealPlan(plan: unknown): MealPlanItem[] {
+  const validMealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+  if (!Array.isArray(plan)) return INITIAL_MEAL_PLAN;
+  return plan.map(item => {
+    if (!item || typeof item !== 'object') {
+      return { date: '', mealType: 'Breakfast', recipe: null, prepTasks: [] };
+    }
+    const m = item as Record<string, unknown>;
+    const rawMealType = typeof m.mealType === 'string' ? m.mealType : 'Breakfast';
+    const mealType: MealType = validMealTypes.includes(rawMealType as MealType) ? (rawMealType as MealType) : 'Breakfast';
+    return {
+      date: typeof m.date === 'string' ? m.date : '',
+      mealType,
+      recipe: m.recipe ? normalizeRecipe(m.recipe) : null,
+      prepTasks: Array.isArray(m.prepTasks) ? m.prepTasks : [],
+    } as MealPlanItem;
+  });
+}
+
+function normalizeCookbook(recipes: unknown): Recipe[] {
+  if (!Array.isArray(recipes)) return [];
+  return recipes
+    .map(normalizeRecipe)
+    .filter((r): r is Recipe => r !== null);
+}
+
 function App() {
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -85,8 +122,8 @@ function App() {
   // Load state from local storage or use initials
   const [preferences, setPreferences] = useState<DietaryPreferences>(() => safeGetLocalStorage('preferences', INITIAL_PREFERENCES));
   const [pantryItems, setPantryItems] = useState<Ingredient[]>(() => safeGetLocalStorage('pantry', INITIAL_PANTRY));
-  const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(() => safeGetLocalStorage('mealPlan', INITIAL_MEAL_PLAN));
-  const [cookbook, setCookbook] = useState<Recipe[]>(() => safeGetLocalStorage('cookbook', []));
+  const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(() => normalizeMealPlan(safeGetLocalStorage<unknown>('mealPlan', INITIAL_MEAL_PLAN)));
+  const [cookbook, setCookbook] = useState<Recipe[]>(() => normalizeCookbook(safeGetLocalStorage<unknown>('cookbook', [])));
   
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,7 +134,7 @@ function App() {
   const [weekDaySelections, setWeekDaySelections] = useState<Record<string, number[]>>({});
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>(() => safeGetLocalStorage('shoppingList', []));
   const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
-  const [debounceTimeout, setDebounceTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Persist state to local storage
   useEffect(() => {
@@ -185,11 +222,11 @@ function App() {
 
   // Generate shopping list from meal plan and pantry stock
   useEffect(() => {
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
     }
 
-    const timeoutId = setTimeout(() => {
+    debounceTimeout.current = setTimeout(() => {
       const generateList = async () => {
         setIsShoppingListLoading(true);
         try {
@@ -242,11 +279,9 @@ function App() {
       generateList();
     }, 1000); // 1 second debounce
 
-    setDebounceTimeout(timeoutId);
-
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
       }
     };
   }, [mealPlan, pantryItems, preferences.shoppingStores, currentWeekStart]);

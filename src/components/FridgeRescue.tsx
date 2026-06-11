@@ -5,22 +5,11 @@ import { DietaryPreferences } from '../types';
 import { analyzeFridgeImage } from '../services/geminiService';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
+import { fileToGenerativePart } from '../utils/imageToGenerativePart';
 
 interface FridgeRescueProps {
     preferences: DietaryPreferences;
 }
-
-const fileToGenerativePart = async (file: File) => {
-  const base64EncodedDataPromise = new Promise<string>((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-    reader.readAsDataURL(file);
-  });
-  return {
-    base64: await base64EncodedDataPromise,
-    mimeType: file.type,
-  };
-};
 
 export const FridgeRescue: React.FC<FridgeRescueProps> = ({ preferences }) => {
     const [isLoading, setIsLoading] = useState(false);

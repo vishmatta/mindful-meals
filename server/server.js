@@ -21,9 +21,9 @@ if (!apiKey) {
     console.error("Warning: GEMINI_API_KEY environment variable is not set! AI endpoints will return errors.");
 }
 
-// Limit body size to 50mb
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({extended: true, limit: '50mb'}));
+// Limit body size to 10mb
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({extended: true, limit: '10mb'}));
 app.set('trust proxy', 1 /* number of proxies between user and server */)
 
 // Rate limiter for AI API routes
@@ -53,7 +53,12 @@ app.get('/', (req, res) => {
         if (err) {
             // index.html not found or unreadable, serve the original placeholder
             console.log('LOG: index.html not found or unreadable. Falling back to original placeholder.');
-            res.sendFile(placeholderPath);
+            res.sendFile(placeholderPath, (errFallback) => {
+                if (errFallback) {
+                    console.error('ERROR: Placeholder file is also missing or unreadable:', errFallback);
+                    res.status(500).send('Internal Server Error: Application assets are unavailable.');
+                }
+            });
         }
     });
 });

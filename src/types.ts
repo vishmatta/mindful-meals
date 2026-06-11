@@ -9,6 +9,8 @@ export enum View {
   Cookbook = 'COOKBOOK',
 }
 
+export type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+
 export enum EnergyLevel {
   FullPower = 'FULL_POWER',
   Cruising = 'CRUISING',
@@ -67,13 +69,13 @@ export interface Recipe {
   cleanupLevel: 'low' | 'medium' | 'high';
   isFavorite: boolean;
   cuisine: string;
-  cookingMethod?: string;
-  substitutions?: string[];
+  cookingMethod: string;
+  substitutions: string[];
 }
 
 export interface MealPlanItem {
   date: string; // YYYY-MM-DD
-  mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+  mealType: MealType;
   recipe: Recipe | null;
   prepTasks: PrepStep[];
 }

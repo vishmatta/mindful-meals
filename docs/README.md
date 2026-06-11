@@ -30,8 +30,8 @@ Click any file below to jump directly to that section:
 ### 🏛️ System & Architecture
 *   **[System Architecture](architecture.md)**
     *   Client-Server data flow and routing details.
-    *   Offline capabilities (Service Worker & WebSockets).
-    *   Data synchronization strategy (Pantry, Shopping List, Cookbook).
+    *   Database persistence model (Prisma + PostgreSQL) and sync strategy.
+    *   Data synchronization strategy (optimistic UI, debounced writes, revert stack).
 
 ### 🔄 Workflows & Contributions
 *   **[Workflows & Guides](workflows.md)**

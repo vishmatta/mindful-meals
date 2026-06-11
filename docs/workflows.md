@@ -17,11 +17,12 @@ This document details the development setup, build workflows, git practices, and
 
 ### Prerequisites
 *   Node.js (v18 or higher recommended)
+*   Docker Desktop (required for local PostgreSQL via Docker Compose)
 *   A Gemini API Key (obtained from [Google AI Studio](https://aistudio.google.com/))
 
 ### Setup Steps
 1.  **Clone the Repository** and navigate to the project root.
-2.  **Configure Backend Secrets:** Create a `.env` file in the `server/` directory (not the project root) to prevent accidental API key leaks:
+2.  **Configure Backend Secrets:** Create a `.env` file in the `server/` directory (not the project root):
     ```bash
     cd server
     touch .env
@@ -30,8 +31,24 @@ This document details the development setup, build workflows, git practices, and
     ```env
     GEMINI_API_KEY=your_gemini_api_key_here
     PORT=3001
+    DATABASE_URL="postgresql://mindful:mindful@localhost:5432/mindful_meals"
+    DIRECT_DATABASE_URL="postgresql://mindful:mindful@localhost:5432/mindful_meals"
+    DEFAULT_USER_ID="your-fixed-uuid-here"
+    HOUSEHOLD_API_KEY="your-household-key-here"
     ```
-3.  **Install Dependencies:**
+    For `HOUSEHOLD_API_KEY`, generate a key with: `openssl rand -hex 32`
+3.  **Start the local database:**
+    ```bash
+    docker compose up -d db
+    ```
+4.  **Run migrations and seed initial data:**
+    ```bash
+    cd server
+    npx prisma migrate dev --name init
+    npx prisma db seed
+    ```
+    The seed command is idempotent — safe to run multiple times.
+5.  **Install Dependencies:**
     ```bash
     # From project root: Install frontend dependencies
     npm install
@@ -49,14 +66,20 @@ Use the following commands from their designated directories:
 
 | Task | Command | Directory | Description |
 |---|---|---|---|
+| **Start local database** | `docker compose up -d db` | Root (`.`) | Starts Postgres 16 container on port 5432. |
+| **Run DB migrations** | `npx prisma migrate dev` | `./server` | Applies pending migrations and regenerates Prisma client. |
+| **Seed initial data** | `npx prisma db seed` | `./server` | Upserts default user, preferences, and pantry items. Idempotent. |
 | **Start Backend Dev Server** | `npm run dev` | `./server` | Runs Express with `nodemon` on port 3001. |
 | **Start Frontend Dev Server** | `npm start` | Root (`.`) | Runs Vite on port 3000. Proxies `/api` to port 3001. |
 | **Build Frontend** | `npm run build` | Root (`.`) | Builds frontend assets to `./dist` and copies them to `./server/dist/`. |
 | **Run Production Server** | `npm start` | `./server` | Serves the Express server and the compiled static assets. |
-| **Run Tests** | `npm test` | Root (`.`) | Runs test suites via `react-scripts test`. |
+| **Run Tests** | `npm test` | Root (`.`) | Runs all test suites. |
 
 > [!IMPORTANT]
 > Because the Express server in production serves static assets from `./server/dist`, you **must** run `npm run build` from the repository root before launching the server in production mode.
+
+> [!NOTE]
+> The local `DATABASE_URL` and `DIRECT_DATABASE_URL` point to the same Docker Compose instance. In production, `DATABASE_URL` uses the Supabase Supavisor pooler (port 6543) and `DIRECT_DATABASE_URL` uses the direct connection (port 5432) for migrations and seeding only.
 
 ---
 

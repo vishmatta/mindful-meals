@@ -15,29 +15,48 @@ This document details the high-level architecture, client-server communications,
 
 ## 1. System Topology
 
-Mindful Meals is designed as a lightweight Single Page Application (SPA) backed by a Node/Express proxy layer that interfaces safely with the Google Gemini API.
+Mindful Meals is a Single Page Application (SPA) backed by a Node/Express server that interfaces with both the Google Gemini API and a PostgreSQL database (via Prisma ORM).
 
 ```mermaid
 graph TD
     subgraph Client [Client Browser]
         React[React Client / App.tsx]
-        LS[(Local Storage Cache)]
+        LS[(localStorage — theme only)]
         React <--> LS
     end
 
     subgraph Server [Backend / Express]
         Express[Express Server / server.js]
+        HK[verifyHouseholdKey middleware]
         AIRouter[AI Router / routes/ai.js]
-        Express --> AIRouter
+        DataRouter[Data Router / routes/data.js]
+        Express --> HK
+        HK --> AIRouter
+        HK --> DataRouter
+    end
+
+    subgraph Persistence [Persistence]
+        Prisma[Prisma ORM]
+        DB[(PostgreSQL)]
+        Prisma <--> DB
     end
 
     subgraph External [External Services]
         Gemini[Google Gemini API]
     end
 
-    React <-->|Fetch API Requests| Express
+    subgraph CICD [CI/CD]
+        CloudBuild[Cloud Build]
+    end
+
+    React <-->|X-Household-Key header| Express
     AIRouter <-->|Official SDK / JSON Schemas| Gemini
+    DataRouter <-->|Prisma Client pooler| Prisma
+    CloudBuild -->|prisma migrate deploy directUrl| DB
 ```
+
+### Access Control
+All `/api/*` routes (both AI and data) require an `X-Household-Key` request header. The server compares the value against `HOUSEHOLD_API_KEY` (Cloud Run secret) and returns `401` on mismatch. The client injects the key at build time via `VITE_HOUSEHOLD_API_KEY`. See [database-integration-plan.md](../plans/database-integration-plan.md) (Decision 2) for the full risk profile.
 
 ---
 
@@ -50,29 +69,54 @@ During local development, two servers run concurrently:
 *   **Proxy Configuration:** `vite.config.ts` is configured to proxy all `/api` requests to `http://localhost:3001`. This avoids Cross-Origin Resource Sharing (CORS) complications during development.
 
 ### Production Environment Routing
-In production, a single container hosts the entire application on the port specified by `process.env.PORT` (defaults to `3000` or `3001`).
-*   **Static Serving:** The Express server (`server.js`) hosts the compiled frontend assets from the `./dist` (copied to `./server/dist`) folder.
-*   **API Hosting:** Requests targeting `/api/*` are captured by server routes, while all other requests fall back to serving `index.html` (supporting SPA routing).
+In production, a single Cloud Run container hosts the entire application.
+*   **Static Serving:** The Express server (`server.js`) hosts the compiled frontend assets from `./server/dist`.
+*   **API Hosting:** Requests targeting `/api/*` are captured by server routes; all other requests fall back to `index.html` (SPA routing).
+*   **Database:** Cloud Run connects to Supabase PostgreSQL via the Supavisor connection pooler (port 6543).
+
+### Route Namespaces
+| Prefix | Router | Rate limit | Purpose |
+|---|---|---|---|
+| `/api/data/*` | `routes/data.js` | 300 req / 15 min | Persistent user data (sync, preferences, pantry, etc.) |
+| `/api/*` | `routes/ai.js` | 100 req / 15 min | Gemini AI features |
 
 ---
 
 ## 3. Client State & Data Synchronization
 
-### Persistent Core State
-Mindful Meals stores all user data client-side in the browser's `localStorage`. The global React state is managed inside [src/App.tsx](../src/App.tsx) and synchronized on modifications.
+### Persistence model
+User data is stored in a PostgreSQL database (Prisma schema at `server/prisma/schema.prisma`) and synced to the React client on mount. `localStorage` is no longer the source of truth for durable data.
 
-The core states include:
-*   `preferences`: Dietary restrictions, customized shopping stores, and calendar views.
-*   `pantryItems`: Checklist of ingredients, in-stock state, and categorizations.
-*   `mealPlan`: Active week recipes mapped by day and meal type.
-*   `shoppingList`: Dynamic consolidated list of grocery items.
-*   `cookbook`: Favorite saved recipes.
+| Data | Stored where |
+|---|---|
+| `preferences` | DB — `Preference` model |
+| `pantry` | DB — `PantryItem` model |
+| `mealPlan` (slots + recipes) | DB — `MealPlanSlot` + `Recipe` models |
+| `cookbook` (favorites) | DB — `Recipe` model (`isFavorite: true`) |
+| `shoppingList` manual items | DB — `ShoppingListItem` model |
+| `shoppingList` generated item check-state | DB — `ShoppingListCheck` model |
+| `weeklyPreferencesByWeek` | DB — `WeeklyNote` model |
+| `weekDaySelections` | DB — `WeekDaySelection` model |
+| `theme` | `localStorage` only (device preference, not synced) |
+| `energyLevel` | In-memory session state only |
+| Shopping list generated items | Recomputed client-side via `generateShoppingList()` |
+
+### Sync strategy — optimistic UI + debounced snapshot writes
+
+1.  **Instant UI** — React state updates immediately on user action (no loading gates).
+2.  **Non-blocking initial load** — App renders with hardcoded `INITIAL_*` defaults, then `GET /api/data/sync` runs in the background and replaces state on success.
+3.  **Debounced background writes** — Each resource type has an independent 1 s debounce timer. State changes trigger a `PUT /api/data/<resource>` with the full current snapshot for that resource.
+4.  **Failure recovery** — On write failure, the `useSyncState` hook reverts the affected resource using a three-tier stack: last server snapshot → session cache → `INITIAL_*` defaults. A dismissible banner prompts the user to retry.
+
+### `useSyncState` hook
+`src/hooks/useSyncState.ts` owns all sync logic: `syncStatus`, debounce timers, the PUT queue (flushed as latest-per-resource on load completion), revert stack, and `BroadcastChannel` coordination across tabs. See [database-integration-plan.md](../plans/database-integration-plan.md) (Section 4.9) for the full implementation contract.
 
 ### Shopping List Generation
-The shopping list is computed client-side by comparing the list of ingredients required by the active `mealPlan` recipes against the items checked as "in-stock" in the `pantryItems`.
+The generated portion of the shopping list is computed client-side by comparing the `mealPlan` recipes' ingredients against the `pantryItems` marked "in-stock".
 1.  **Aggregation:** Quantities and units are normalized and summed.
-2.  **Exclusion:** Items marked "in-stock" in the pantry checklist are excluded from the shopping list automatically.
-3.  **Store Mapping:** Grocery items are categorized and mapped to the preferred retail stores defined in `preferences.shoppingStores`.
+2.  **Exclusion:** Items marked "in-stock" in the pantry are excluded automatically.
+3.  **Store Mapping:** Items are mapped to preferred stores from `preferences.shoppingStores`.
+4.  **Check-state persistence:** User check-marks on generated items are persisted in `ShoppingListCheck` rows keyed by normalized item name (best-effort across regenerations).
 
 ---
 

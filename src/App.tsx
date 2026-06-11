@@ -67,6 +67,28 @@ function safeGetLocalStorage<T>(key: string, defaultValue: T): T {
   }
 }
 
+function normalizeRecipe(recipe: any): Recipe {
+  if (!recipe) return recipe;
+  return {
+    ...recipe,
+    cookingMethod: recipe.cookingMethod || 'Any Method',
+    substitutions: recipe.substitutions || [],
+  };
+}
+
+function normalizeMealPlan(plan: MealPlanItem[]): MealPlanItem[] {
+  if (!Array.isArray(plan)) return plan;
+  return plan.map(item => ({
+    ...item,
+    recipe: item.recipe ? normalizeRecipe(item.recipe) : null,
+  }));
+}
+
+function normalizeCookbook(recipes: Recipe[]): Recipe[] {
+  if (!Array.isArray(recipes)) return recipes;
+  return recipes.map(normalizeRecipe);
+}
+
 function App() {
   const [currentView, setCurrentView] = useState<View>(View.Dashboard);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -85,8 +107,8 @@ function App() {
   // Load state from local storage or use initials
   const [preferences, setPreferences] = useState<DietaryPreferences>(() => safeGetLocalStorage('preferences', INITIAL_PREFERENCES));
   const [pantryItems, setPantryItems] = useState<Ingredient[]>(() => safeGetLocalStorage('pantry', INITIAL_PANTRY));
-  const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(() => safeGetLocalStorage('mealPlan', INITIAL_MEAL_PLAN));
-  const [cookbook, setCookbook] = useState<Recipe[]>(() => safeGetLocalStorage('cookbook', []));
+  const [mealPlan, setMealPlan] = useState<MealPlanItem[]>(() => normalizeMealPlan(safeGetLocalStorage('mealPlan', INITIAL_MEAL_PLAN)));
+  const [cookbook, setCookbook] = useState<Recipe[]>(() => normalizeCookbook(safeGetLocalStorage('cookbook', [])));
   
   const [energyLevel, setEnergyLevel] = useState<EnergyLevel>(EnergyLevel.Cruising);
   const [isLoading, setIsLoading] = useState(false);

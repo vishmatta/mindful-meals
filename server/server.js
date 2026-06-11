@@ -53,7 +53,12 @@ app.get('/', (req, res) => {
         if (err) {
             // index.html not found or unreadable, serve the original placeholder
             console.log('LOG: index.html not found or unreadable. Falling back to original placeholder.');
-            res.sendFile(placeholderPath);
+            res.sendFile(placeholderPath, (errFallback) => {
+                if (errFallback) {
+                    console.error('ERROR: Placeholder file is also missing or unreadable:', errFallback);
+                    res.status(500).send('Internal Server Error: Application assets are unavailable.');
+                }
+            });
         }
     });
 });

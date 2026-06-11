@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
 // Fix: Removed 'Cookbook' from import as it is not an exported type from '../types'.
-import { DietaryPreferences, MealPlanItem, Recipe, MealPlanningPreferences } from '../types';
+import { DietaryPreferences, MealPlanItem, Recipe, MealPlanningPreferences, MealType } from '../types';
 import { Button } from './common/Button';
 import { Icon } from './common/Icon';
 import { ENERGY_LEVELS } from '../constants';
 import { Modal } from './common/Modal';
 import { SelectionOptionGroup } from './common/SelectionOptionGroup';
 
-type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 interface MealPlanProps {
     mealPlan: MealPlanItem[];

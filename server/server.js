@@ -21,9 +21,9 @@ if (!apiKey) {
     console.error("Warning: GEMINI_API_KEY environment variable is not set! AI endpoints will return errors.");
 }
 
-// Limit body size to 50mb
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({extended: true, limit: '50mb'}));
+// Limit body size to 10mb
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({extended: true, limit: '10mb'}));
 app.set('trust proxy', 1 /* number of proxies between user and server */)
 
 // Rate limiter for AI API routes

@@ -202,10 +202,12 @@ const ReviewScannedItemsModal: React.FC<{
         }
     }, [initialItems]);
 
-    const handleItemChange = (index: number, field: keyof ScannedItem, value: any) => {
-        const newItems = [...reviewedItems];
-        (newItems[index] as any)[field] = value;
-        setReviewedItems(newItems);
+    const handleItemChange = <K extends keyof ScannedItem>(index: number, field: K, value: ScannedItem[K]) => {
+        setReviewedItems(prev => {
+            const newItems = [...prev];
+            newItems[index] = { ...newItems[index], [field]: value };
+            return newItems;
+        });
     };
     
     const handleConfirm = () => {

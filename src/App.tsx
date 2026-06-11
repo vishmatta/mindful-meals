@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DietaryPreferences,
@@ -11,6 +11,7 @@ import {
   ScannedItem,
   MealPlanningPreferences,
   PrepStep,
+  MealType,
 } from './types';
 import {
   INITIAL_PANTRY,
@@ -35,7 +36,6 @@ import { FridgeRescue } from './components/FridgeRescue';
 import { Cookbook } from './components/Cookbook';
 import { Icon } from './components/common/Icon';
 
-type MealType = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 const getStartOfWeek = () => {
   const now = new Date();
@@ -97,7 +97,7 @@ function App() {
   const [weekDaySelections, setWeekDaySelections] = useState<Record<string, number[]>>({});
   const [shoppingList, setShoppingList] = useState<ShoppingListItem[]>(() => safeGetLocalStorage('shoppingList', []));
   const [isShoppingListLoading, setIsShoppingListLoading] = useState(false);
-  const [debounceTimeout, setDebounceTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const debounceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Persist state to local storage
   useEffect(() => {
@@ -185,11 +185,11 @@ function App() {
 
   // Generate shopping list from meal plan and pantry stock
   useEffect(() => {
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
+    if (debounceTimeout.current) {
+      clearTimeout(debounceTimeout.current);
     }
 
-    const timeoutId = setTimeout(() => {
+    debounceTimeout.current = setTimeout(() => {
       const generateList = async () => {
         setIsShoppingListLoading(true);
         try {
@@ -242,11 +242,9 @@ function App() {
       generateList();
     }, 1000); // 1 second debounce
 
-    setDebounceTimeout(timeoutId);
-
     return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
+      if (debounceTimeout.current) {
+        clearTimeout(debounceTimeout.current);
       }
     };
   }, [mealPlan, pantryItems, preferences.shoppingStores, currentWeekStart]);

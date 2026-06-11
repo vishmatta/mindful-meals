@@ -15,7 +15,6 @@ const PANTRY_CATEGORIES = [
 const recipeSchema = {
   type: Type.OBJECT,
   properties: {
-    id: { type: Type.STRING },
     name: { type: Type.STRING },
     description: { type: Type.STRING },
     ingredients: {
@@ -51,7 +50,7 @@ const recipeSchema = {
     cookingMethod: { type: Type.STRING },
     substitutions: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
-  required: ['id', 'name', 'description', 'ingredients', 'prepSteps', 'cookingTimeMinutes', 'totalTimeMinutes', 'energyLevel', 'cleanupLevel', 'isFavorite', 'cuisine', 'cookingMethod', 'substitutions'],
+  required: ['name', 'description', 'ingredients', 'prepSteps', 'cookingTimeMinutes', 'totalTimeMinutes', 'energyLevel', 'cleanupLevel', 'isFavorite', 'cuisine', 'cookingMethod', 'substitutions'],
 };
 
 const fullDayMealSchema = {

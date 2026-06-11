@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { DietaryPreferences, Ingredient, Recipe, EnergyLevel, ScannedItem, ShoppingListItem } from '../types';
+import { DietaryPreferences, Ingredient, Recipe, EnergyLevel, ScannedItem, ShoppingListItem, MealType } from '../types';
 
 async function apiPost<T>(path: string, body: unknown): Promise<T> {
     const res = await fetch(path, {
@@ -38,7 +38,7 @@ export const generateRecipes = async (
     preferences: DietaryPreferences,
     pantry: Ingredient[],
     energyLevel: EnergyLevel,
-    mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+    mealType: MealType,
     count: number,
     weeklyPreferences: string,
     isBatch: boolean,
@@ -51,7 +51,7 @@ export const generateTargetedRecipes = async (
     preferences: DietaryPreferences,
     pantry: Ingredient[],
     energyLevel: EnergyLevel,
-    mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack',
+    mealType: MealType,
     count: number,
     cookingMethod: string,
     timeAvailable: string,

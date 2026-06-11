@@ -69,24 +69,28 @@ function safeGetLocalStorage<T>(key: string, defaultValue: T): T {
 
 function normalizeRecipe(recipe: unknown): Recipe | null {
   if (!recipe || typeof recipe !== 'object') return null;
-  const r = recipe as Record<string, any>;
+  const r = recipe as Record<string, unknown>;
   return {
     ...r,
+    id: typeof r.id === 'string' ? r.id : uuidv4(),
     cookingMethod: typeof r.cookingMethod === 'string' ? r.cookingMethod : 'Any Method',
     substitutions: Array.isArray(r.substitutions) ? r.substitutions : [],
   } as Recipe;
 }
 
 function normalizeMealPlan(plan: unknown): MealPlanItem[] {
+  const validMealTypes: MealType[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
   if (!Array.isArray(plan)) return INITIAL_MEAL_PLAN;
   return plan.map(item => {
     if (!item || typeof item !== 'object') {
       return { date: '', mealType: 'Breakfast', recipe: null, prepTasks: [] };
     }
-    const m = item as Record<string, any>;
+    const m = item as Record<string, unknown>;
+    const rawMealType = typeof m.mealType === 'string' ? m.mealType : 'Breakfast';
+    const mealType: MealType = validMealTypes.includes(rawMealType as MealType) ? (rawMealType as MealType) : 'Breakfast';
     return {
       date: typeof m.date === 'string' ? m.date : '',
-      mealType: typeof m.mealType === 'string' ? m.mealType : 'Breakfast',
+      mealType,
       recipe: m.recipe ? normalizeRecipe(m.recipe) : null,
       prepTasks: Array.isArray(m.prepTasks) ? m.prepTasks : [],
     } as MealPlanItem;

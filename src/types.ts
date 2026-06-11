@@ -75,7 +75,7 @@ export interface Recipe {
 
 export interface MealPlanItem {
   date: string; // YYYY-MM-DD
-  mealType: 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+  mealType: MealType;
   recipe: Recipe | null;
   prepTasks: PrepStep[];
 }

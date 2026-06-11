@@ -200,7 +200,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                             <span title={`Energy: ${ENERGY_LEVELS[generatedRecipe.energyLevel].label}`} className={`px-2 py-1 rounded-full text-white ${ENERGY_LEVELS[generatedRecipe.energyLevel].color}`}>{ENERGY_LEVELS[generatedRecipe.energyLevel].label}</span>
                             <span className="text-text-secondary">Cleanup: {generatedRecipe.cleanupLevel}</span>
                             <span className="text-text-secondary">{generatedRecipe.totalTimeMinutes} min total</span>
-                            {generatedRecipe.cookingMethod && <span className="text-text-secondary">Method: {generatedRecipe.cookingMethod}</span>}
+                            <span className="text-text-secondary">Method: {generatedRecipe.cookingMethod}</span>
                             <button
                                 onClick={() => onToggleFavorite(generatedRecipe.id, undefined, undefined, generatedRecipe)}
                                 className="p-1 rounded-full hover:bg-functional-danger/10 text-neutral-medium/80 hover:text-functional-danger transition-colors flex items-center text-xs font-semibold"
@@ -222,7 +222,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setCurrentView, mealPlan, 
                                 {generatedRecipe.prepSteps.map((step, i) => <li key={i}>{step.task} ({step.durationMinutes} min)</li>)}
                             </ol>
                         </div>
-                        {generatedRecipe.substitutions && generatedRecipe.substitutions.length > 0 && (
+                        {generatedRecipe.substitutions.length > 0 && (
                             <div>
                                 <h4 className="font-semibold text-sm mt-4 mb-2 font-heading">Substitutions</h4>
                                 <ul className="list-disc list-inside text-sm space-y-1 text-text-secondary">

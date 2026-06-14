@@ -10,7 +10,6 @@ const args = process.argv.slice(2);
 // Helper: Glob matcher (same pattern as pr-evaluator.cjs)
 // -------------------------------------------------------------
 function matchGlob(filePath, glob) {
-  // Normalize windows separators
   const normalizedFile = filePath.replace(/\\/g, '/');
   const normalizedGlob = glob.replace(/\\/g, '/');
 
@@ -188,6 +187,106 @@ if (args.includes('--git-pre-commit')) {
   }
 
   process.exit(0);
+
+} else if (args.includes('--git-pre-push')) {
+  // Git Pre-Push Hook logic
+  let branchName = '';
+  try {
+    branchName = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
+  } catch (err) {
+    branchName = '';
+  }
+
+  const isAgent = branchName.startsWith('agent/') || branchName.startsWith('copilot/');
+
+  let inputData = '';
+  process.stdin.on('data', chunk => {
+    inputData += chunk;
+  });
+
+  process.stdin.on('end', () => {
+    if (!inputData.trim()) {
+      process.exit(0);
+    }
+
+    const lines = inputData.trim().split('\n');
+    let hasViolations = false;
+    const errorMessages = [];
+
+    for (const line of lines) {
+      const parts = line.split(/\s+/);
+      if (parts.length < 4) continue;
+
+      const localSha = parts[1];
+      const remoteSha = parts[3];
+
+      // If branch deletion, skip
+      if (localSha === '0000000000000000000000000000000000000000') continue;
+
+      // Determine diff range
+      let diffRange = '';
+      if (remoteSha === '0000000000000000000000000000000000000000') {
+        // New branch, diff against origin/main if exists, otherwise base is first commit
+        try {
+          execSync('git rev-parse origin/main', { stdio: 'ignore' });
+          diffRange = `origin/main...${localSha}`;
+        } catch (e) {
+          diffRange = localSha;
+        }
+      } else {
+        diffRange = `${remoteSha}...${localSha}`;
+      }
+
+      // Check changed files
+      let changedFiles = [];
+      try {
+        changedFiles = execSync(`git diff --name-only "${diffRange}"`, { encoding: 'utf8' })
+          .trim()
+          .split('\n')
+          .filter(f => f.trim() !== '');
+      } catch (err) {
+        changedFiles = [];
+      }
+
+      for (const file of changedFiles) {
+        if (isAgent && matchGlob(file, '.github/workflows/**')) {
+          hasViolations = true;
+          errorMessages.push(`[Boundary violation] Agents are forbidden from modifying GitHub workflows: ${file}`);
+        }
+      }
+
+      // Check added code in diff for secrets
+      try {
+        const diff = execSync(`git diff -U0 "${diffRange}"`, { encoding: 'utf8' });
+        const diffLines = diff.split('\n');
+        let currentFile = '';
+
+        for (const diffLine of diffLines) {
+          if (diffLine.startsWith('+++ b/')) {
+            currentFile = diffLine.substring(6);
+          } else if (diffLine.startsWith('+') && !diffLine.startsWith('+++')) {
+            const addedContent = diffLine.substring(1);
+            const secretErr = checkSecrets(addedContent, currentFile);
+            if (secretErr) {
+              hasViolations = true;
+              errorMessages.push(`[Credential Leak] ${secretErr}`);
+            }
+          }
+        }
+      } catch (err) {
+        // Diff error, skip fine-grained scan
+      }
+    }
+
+    if (hasViolations) {
+      console.error('\n❌ Git Push Blocked by Pre-push Gating:');
+      errorMessages.forEach(msg => console.error(`  - ${msg}`));
+      console.error('\nPlease resolve the violations above before pushing.\n');
+      process.exit(1);
+    }
+
+    process.exit(0);
+  });
 
 } else {
   // Claude Code / CLI agent PreToolUse hook logic

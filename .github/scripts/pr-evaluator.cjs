@@ -71,6 +71,13 @@ function matchGlob(filePath, glob) {
   return regex.test(filePath);
 }
 
+function stripQuotes(val) {
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    return val.substring(1, val.length - 1);
+  }
+  return val;
+}
+
 function parseAgentProfile(filePath) {
   const content = fs.readFileSync(filePath, 'utf8');
   const frontmatterMatch = content.match(/^---\r?\n([\s\S]+?)\r?\n---/);
@@ -83,12 +90,12 @@ function parseAgentProfile(filePath) {
   yamlLines.forEach(line => {
     const trimmed = line.trim();
     if (trimmed.startsWith('-') && currentKey === 'applyTo') {
-      data.applyTo.push(trimmed.substring(1).trim());
+      data.applyTo.push(stripQuotes(trimmed.substring(1).trim()));
     } else {
       const parts = line.split(':');
       if (parts.length >= 2) {
         const key = parts[0].trim();
-        const value = parts.slice(1).join(':').trim();
+        const value = stripQuotes(parts.slice(1).join(':').trim());
         if (key === 'name') {
           data.name = value;
         } else if (key === 'applyTo') {

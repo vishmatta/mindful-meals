@@ -10,7 +10,7 @@ tools:
 applyTo:
   - docs/**/*
   - plans/**/*
-  - "*.md"
+  - *.md
 ---
 # Docs Assistant Persona
 

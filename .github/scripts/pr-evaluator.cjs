@@ -56,13 +56,17 @@ function runGit(command) {
 }
 
 function matchGlob(filePath, glob) {
-  // Standard glob to regex converter
-  let regexStr = glob
-    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape regex chars except *, ?
-    .replace(/\*\*/g, '@@')              // temporarily replace **
-    .replace(/\*/g, '[^/]*')             // replace single * with non-slash matches
-    .replace(/@@/g, '.*')                // replace ** with any characters including slashes
-    .replace(/\?/g, '.');                // replace ? with single char match
+  // Safe glob to regex converter using placeholders to avoid overlapping replacements
+  const regexStr = glob
+    .replace(/[.+^${}()|[\]\\]/g, m => '\\' + m) // escape regex chars except *, ?
+    .replace(/\/\*\*\//g, '__DIR_SPLIT__')       // match /**/
+    .replace(/\/\*\*/g, '__DIR_END__')           // match /** at the end of path
+    .replace(/\*\*/g, '__DOUBLE_STAR__')         // match wildcard **
+    .replace(/\*/g, '[^/]*')                     // match single *
+    .replace(/\?/g, '[^/]')                      // match ?
+    .replace(/__DIR_SPLIT__/g, '/(?:.*/)?')
+    .replace(/__DIR_END__/g, '/.*')
+    .replace(/__DOUBLE_STAR__/g, '.*');
   const regex = new RegExp('^' + regexStr + '$');
   return regex.test(filePath);
 }

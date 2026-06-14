@@ -6,6 +6,8 @@
 
 # Frontend source (React + TypeScript)
 /src/** @vishmatta
+/index.html @vishmatta
+/index.tsx @vishmatta
 
 # Backend server (Express + Node.js)
 /server/** @vishmatta
@@ -21,12 +23,6 @@
 /CONTRIBUTING.md @vishmatta
 /AGENTS.md @vishmatta
 /*.md @vishmatta
-
-# Static assets
-/public/** @vishmatta
-
-# Tests
-/test/** @vishmatta
 
 # Build and package configuration
 /package.json @vishmatta

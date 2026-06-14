@@ -12,12 +12,12 @@ This repository uses a **CODEOWNERS** file (`.github/CODEOWNERS`) to enforce pat
 
 | Path | Owner |
 |------|-------|
-| `src/` | @vishmatta |
-| `server/` | @vishmatta |
+| `src/`, `index.html`, `index.tsx` | @vishmatta |
+| `server/` (including backend public assets) | @vishmatta |
 | `.github/`, `Dockerfile`, `cloudbuild.yaml` | @vishmatta |
 | `docs/`, `*.md` files | @vishmatta |
-| `public/`, `test/` | @vishmatta |
 | `package.json`, build config | @vishmatta |
+
 
 ### Updating CODEOWNERS
 
@@ -127,23 +127,21 @@ Then open a pull request on GitHub with:
 
 ## 🧪 Testing Before Submission
 
-### Frontend
+As there are currently no automated test files tracked in the repository, verification relies primarily on manual testing and adding test suites for new complex logic.
 
-```bash
-npm test
-```
+### Automated Testing (When Added)
 
-### Backend
+- **Frontend**: Run `npm test` in the root directory (uses `react-scripts test`).
+- **Backend**: Currently, no test runner is configured. Any backend test suites added in the future should be defined in `server/package.json` under a `test` script.
 
-```bash
-cd server && npm test
-```
+### Manual Verification
 
-### Manual Testing
-
+To manually verify your changes:
 - Run the dev servers locally (see [README.md](./README.md)).
-- Test your changes across different energy levels and scenarios.
-- Verify no console errors or warnings are introduced.
+- Test user flows across different energy levels and scenarios.
+- Inspect the browser console to ensure no errors or warnings are introduced.
+- Verify that state persists correctly in `localStorage` upon reload.
+
 
 ---
 

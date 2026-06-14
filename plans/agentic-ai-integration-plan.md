@@ -133,7 +133,7 @@ Establish planning frameworks and programmatically block merges that bypass plan
 ### Phase 3: Custom Agents & Tool Gating
 Sandbox AI capabilities by defining custom profiles and execution boundaries.
 
-* [ ] **Task 3.1: Create Custom Agent Profiles**
+* [x] **Task 3.1: Create Custom Agent Profiles**
   * *Description:* Add specialized `.agent.md` files (e.g., `recipe-assistant.agent.md`) under `.github/agents/` restricting write-access using the `applyTo` parameter.
   * *Complexity:* Medium
   * *Dependencies:* None

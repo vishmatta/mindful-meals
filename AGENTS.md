@@ -179,3 +179,33 @@ We practice trunk-based development on the `main` branch.
 *   **No Administrative Access**: AI agents are strictly blocked from modifying `.github/` configurations, scripts, or workflows. Any CI/CD adjustments must be routed through human developers.
 *   **Secrets Scanning & Bypass Policy**: Hardcoded credentials (like Gemini API keys starting with `AIzaSy`) are blocked. If you must use a mock key in a test file, add the inline comment `// pr-evaluator:allow` on that line; this will bypass blocking but log the bypass in the evaluation report for human review.
 
+### 🛡️ Safe Iteration Policy & Human Escalation
+To prevent runaway execution and infinite retry loops that consume API tokens, compute resources, and developer review cycles, all agents must adhere to the following safety boundaries:
+
+#### 1. Retry Limits
+- **Maximum Consecutive Failures:** An agent must not exceed **2 consecutive test or build failures** during local verification or automated evaluation.
+- **Action on Failure:** If a second consecutive build or test run fails, the agent must halt execution immediately, diagnostic information must be collected, and control must be escalated to a human developer.
+
+#### 2. Diagnostic Escalation Template
+When a failure threshold is reached or human intervention is required, the agent must generate a diagnostic report using the following markdown template:
+
+```markdown
+### 🚨 Diagnostic Report: Human Escalation Required
+
+- **Conversation ID:** [Insert ID]
+- **Current Branch:** [Insert branch name]
+- **Failed Command:** [e.g., `npm run build` or `npm test`]
+- **Consecutive Failures Count:** [1 or 2]
+
+#### Error Diagnostic / Stack Trace
+[Provide the exact error message, compilation failure, or test trace here]
+
+#### Agent State Summary
+1. **Goal:** [What the agent was trying to achieve]
+2. **Completed Steps:**
+   - [x] Step A
+   - [x] Step B
+3. **Hypothesis for Failure:** [Why the agent thinks it is failing and what blocks it]
+4. **Proposed Human Actions:** [Suggested manual steps or fixes for the human to apply]
+```
+

@@ -149,3 +149,8 @@ If you are an AI assistant working on this repository, you must adhere strictly 
 *   Prefix all agent commit messages with `[agent]` (e.g. `[agent] fix: validate fridge image mimeType`).
 *   Prefix all agent PR titles with `[Agent]`.
 *   Call out any assumptions or areas of uncertainty in the PR description so the reviewer knows where to focus.
+
+### Safe Iteration Policy & Human Escalation
+To mitigate infinite retry loops that consume API tokens, compute resources, and developer review cycles, AI agents must abide by the following policy:
+*   **Retry Limits:** Do not exceed **2 consecutive test or build failures** during local verification or automated evaluation.
+*   **Human Escalation:** If the limit is reached, halt execution immediately and generate a diagnostic report based on the escalation template (see [AGENTS.md](file:///Volumes/Vish%20X9%20Pro/02_Developer/01_Personal/mindful-meals/AGENTS.md) for details).

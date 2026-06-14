@@ -11,6 +11,9 @@ const REPORT_MD = path.join(process.cwd(), 'evaluation-report.md');
 const baseBranch = process.env.GITHUB_BASE_REF || 'main';
 const buildStatus = process.env.BUILD_STATUS || 'success';
 const testStatus = process.env.TEST_STATUS || 'success';
+const baseSha = process.env.BASE_SHA;
+const headSha = process.env.HEAD_SHA;
+const diffTarget = (baseSha && headSha) ? `${baseSha}...${headSha}` : `origin/${baseBranch}...HEAD`;
 
 // Read GITHUB_EVENT_PATH if available
 let prBody = process.env.PR_BODY || '';
@@ -159,7 +162,7 @@ const scopeCheck = {
 };
 
 // Retrieve changed files in PR
-const changedFilesRaw = runGit(`git diff --name-only origin/${baseBranch}...HEAD`);
+const changedFilesRaw = runGit(`git diff --name-only ${diffTarget}`);
 const changedFiles = changedFilesRaw ? changedFilesRaw.split('\n').filter(Boolean) : [];
 scopeCheck.changedFiles = changedFiles;
 
@@ -247,7 +250,7 @@ const secretsCheck = {
 };
 
 // Retrieve actual added lines in PR diff
-const diffContent = runGit(`git diff -U0 origin/${baseBranch}...HEAD`);
+const diffContent = runGit(`git diff -U0 ${diffTarget}`);
 const diffLines = diffContent ? diffContent.split('\n') : [];
 
 let currentFile = '';

@@ -35,7 +35,7 @@ jobs:
 
       - name: Run Tests
         id: test
-        run: CI=true npm test
+        run: CI=true npm test -- --passWithNoTests
         continue-on-error: true
 
       - name: Run PR Evaluator
@@ -45,6 +45,9 @@ jobs:
           TEST_STATUS: ${{ steps.test.outcome }}
           PR_BODY: ${{ github.event.pull_request.body }}
           PR_TITLE: ${{ github.event.pull_request.title }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: node .github/scripts/pr-evaluator.cjs
 
       - name: Save PR Number

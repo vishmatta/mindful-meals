@@ -66,16 +66,17 @@ We will use a layered security approach combining repository-level policies, CI/
                          ▼
        [ Phase 2: Plan-First Pull Request ]
          (pull_request_template.md plan)
-                         │
-                         ▼
-          [ Phase 3: Plan Gate Workflow ] ──(Fails)──► [ Halts Merge ]
-        (Validates plan presence in PR body)
-                         │
-                      (Passes)
-                         ▼
-       [ Phase 4: CI Validation & CODEOWNERS ] ──(Fails)──► [ Max 2 Retries / Escalation ]
-      (npm build/test + required human review)
-                         │
+ ┌───────────────────────┴───────────────────────┐
+ │                                               │
+ │         [ Phase 3: Plan Gate Workflow ] ──────┼──(Fails)──► [ Halts Merge ]
+ │       (Validates plan presence in PR body)    │             (Human friendly output)
+ │                       │                       │
+ │                    (Passes)                   │
+ │                       ▼                       │  [ EVALUATE PHASE ]
+ │     [ Phase 4: CI Validation & CODEOWNERS ] ──┼──(Fails)──► [ Max 2 Retries / Escalation ]
+ │    (npm build/test + required human review)   │             (Closed feedback loop)
+ │                       │                       │
+ └───────────────────────┼───────────────────────┘
                       (Passes)
                          ▼
                [ Merge to default ]
@@ -117,13 +118,18 @@ Establish planning frameworks and programmatically block merges that bypass plan
 * **Task 2.2: Implement the Plan Gate Workflow**
   * *Description:* Create `.github/workflows/plan-gate.yml` to parse PR descriptions and fail the build if the Plan section is absent. 
     * *Note on Gating:* The workflow gates strictly on format (verifying the presence of the header). Substantive review and plan validation remains the responsibility of the required CODEOWNERS approval.
-    * *UX Optimization:* If the check fails, the workflow must output a friendly explanation stating that plans are only required for agents, with a link to `CONTRIBUTING.md`.
+    * *UX Optimization:* If the check fails, the workflow must output a friendly explanation stating that plans are only required for agents, and providing a direct link to `CONTRIBUTING.md`.
   * *Complexity:* Medium
-  * *Dependencies:* Task 2.1
+  * *Dependencies:* Task 2.1, Task 2.4
 * **Task 2.3: Configure Branch Rulesets**
   * *Description:* Configure rulesets on the `main` branch to require the Plan Gate check and CODEOWNERS approvals before merging.
+    * *Branch Guardrail:* Configure rulesets to enforce that PRs matching `Author Type: AI Agent` or runs triggered by agent actors are restricted to source branches matching the `copilot/**` prefix.
   * *Complexity:* Medium
   * *Dependencies:* Task 1.2, Task 2.2
+* **Task 2.4: Update CONTRIBUTING.md Guidelines**
+  * *Description:* Modify the Pull Request section of `CONTRIBUTING.md` to document the new Plan-First PR template requirements, explaining how the gating workflow distinguishes between human contributors and AI agents.
+  * *Complexity:* Small
+  * *Dependencies:* None
 
 ### Phase 3: Custom Agents & Tool Gating
 Sandbox AI capabilities by defining custom profiles and execution boundaries.
@@ -133,7 +139,8 @@ Sandbox AI capabilities by defining custom profiles and execution boundaries.
   * *Complexity:* Medium
   * *Dependencies:* None
 * **Task 3.2: Configure Tool Gating and Hooks**
-  * *Description:* Define pre-tool hooks to validate shell executions and restrict destructive actions (e.g., deleting files).
+  * *Description:* Define pre-tool hooks to validate shell executions and restrict destructive or unauthorized actions.
+    * *Concrete Examples:* The pre-tool hook script (`pre-tool-use`) will intercept and block commands containing forbidden shell structures (such as `rm -rf` targeting folders outside `/dist` or `/tmp`, or `git push --force` operations). It will also restrict file-writing actions from targeting workflow configurations (`.github/workflows/**`) or committed credentials.
   * *Complexity:* Medium
   * *Dependencies:* Task 3.1
 

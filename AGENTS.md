@@ -172,3 +172,10 @@ We practice trunk-based development on the `main` branch.
 *   **Vite Cache / Build Delay:** Remember that frontend edits are only served by the backend Express server *after* running `npm run build`. If you run standard `node server.js` without building, your changes won't be visible.
 *   **API Key Leakage:** Do not add `GEMINI_API_KEY` to the client-side code, Vite configuration, or root `.env`. Keep it strictly in the `server/.env` file.
 *   **Tailwind CDN Extension:** Since Tailwind classes are processed at runtime by the CDN script, any dynamically constructed class names (e.g. `bg-energy-${level}`) must exist in the HTML tailwind config colors mapping or be safe from tailwind's class name scanning constraints.
+
+### 🔒 Automated PR Evaluation & Scope Boundaries
+*   **PR Evaluation Gate**: Every pull request you open is automatically evaluated. The gate will verify your plan completeness, compile your changes (`npm run build`), run tests, scan for committed secrets, and check boundary compliance.
+*   **Write Scope Boundaries**: You must strictly stay within the write boundary paths defined under `.github/agents/*.agent.md` for your active profile. Any modifications to out-of-scope files will automatically fail the boundary check and block the merge.
+*   **No Administrative Access**: AI agents are strictly blocked from modifying `.github/` configurations, scripts, or workflows. Any CI/CD adjustments must be routed through human developers.
+*   **Secrets Scanning & Bypass Policy**: Hardcoded credentials (like Gemini API keys starting with `AIzaSy`) are blocked. If you must use a mock key in a test file, add the inline comment `// pr-evaluator:allow` on that line; this will bypass blocking but log the bypass in the evaluation report for human review.
+

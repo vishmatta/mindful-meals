@@ -120,12 +120,20 @@ git commit -m "fix(storage): resolve local storage parsing crash on corrupt json
 
 ### Pull Requests (PR)
 All changes targeting `main` must go through a Pull Request.
+
 *   **PR Template Requirements:**
-    *   **Summary:** What was changed and why.
-    *   **Testing Steps:** Clear steps to verify.
-    *   **Trigger:** The issue, task ID, or prompt that triggered the change.
-    *   **Impact:** Any potential breaking changes or API updates.
-*   **Review Process:** Require at least one approving review before merging. Self-merging is discouraged.
+    - **Summary:** What was changed and why.
+    - **Testing Steps:** Clear steps to verify.
+    - **Trigger:** The issue, task ID, or prompt that triggered the change.
+    - **Impact:** Any potential breaking changes or API updates.
+*   **Review Process:** Require at least one approving review from Code Owners before merging. Self-merging is blocked for agents and protected by branch rulesets.
+*   **PR Evaluation Gate (Automated Validation)**:
+    Every pull request triggers a multi-stage **PR Evaluation Gate** running on GitHub Actions:
+    - **Plan Gate**: For agent-authored PRs, the evaluator verifies that the `## 📋 Agentic Plan & Rationale` template section is fully completed and contains no default placeholders.
+    - **Boundary Scope Check**: Verifies that agent changes stay within their designated write boundary globs defined in `.github/agents/*.agent.md`. Administrative paths (such as `.github/**`) are restricted from agent modification.
+    - **Secrets Scanning**: Scans changed diff lines for hardcoded credentials (such as Google API keys or explicit key assignments) and client-side safety violations. Intentional bypasses require `// pr-evaluator:allow` and are logged in a dedicated "Bypasses" section of the report.
+    - **Build & Test**: Ensures that `npm run build` compiles and the test suite executes successfully (`CI=true npm test -- --passWithNoTests`).
+    - **Rule of Two Security**: GHA builds and tests run in an isolated read-only job. A separate trusted workflow (`workflow_run`) downloads the evaluation report and posts/updates the PR comment.
 
 ---
 

@@ -34,7 +34,7 @@ By introducing this governance system, we transform the GitHub repository into b
 - [ ] High-risk paths (.github, package.json, tsconfig.json, server configs) require CODEOWNERS reviews.
 - [ ] Custom agent profiles restrict agent write-access scope using `applyTo` path globs.
 - [ ] A documented Safe Iteration Policy gates infinite loop retries and provides human escalation.
-- [ ] Copilot Memory is utilized to cache and verify repository facts without bloating prompt instructions.
+- [ ] Repository-level Copilot Memory facts are defined for the three stack-specific entries (Tailwind CDN, Gemini server-side, PostgreSQL migration) and a 28-day refresh cycle is confirmed by `@vishmatta`.
 
 ### Who will use this and how?
 * **AI Coding Agents:** Will follow the PR template, validate their plans, respect file boundaries, and follow failure escalation paths.
@@ -123,7 +123,7 @@ Establish planning frameworks and programmatically block merges that bypass plan
   * *Dependencies:* Task 2.1, Task 2.4
 * **Task 2.3: Configure Branch Rulesets**
   * *Description:* Configure rulesets on the `main` branch to require the Plan Gate check and CODEOWNERS approvals before merging.
-    * *Branch Guardrail:* Configure rulesets to enforce that PRs matching `Author Type: AI Agent` or runs triggered by agent actors are restricted to source branches matching the `copilot/**` prefix.
+    * *Branch Guardrail:* Agent actors (GitHub Copilot bot identity) are configured to push changes to copilot/** branches by convention. The branch ruleset enforces that all copilot/** branches require the Plan Gate check and CODEOWNERS review before merging to main.
   * *Complexity:* Medium
   * *Dependencies:* Task 1.2, Task 2.2
 * **Task 2.4: Update CONTRIBUTING.md Guidelines**
@@ -148,7 +148,7 @@ Sandbox AI capabilities by defining custom profiles and execution boundaries.
 Define how failures are captured, escalated, and how codebase rules are cached.
 
 * **Task 4.1: Integrate Safe Iteration Policy**
-  * *Description:* Update `AGENTS.md` to document the retry limits (max 2) and specify a diagnostic escalation template.
+  * *Description:* Create or update `AGENTS.md` to document the retry limits (max 2) and specify a diagnostic escalation template.
   * *Complexity:* Small
   * *Dependencies:* None
 * **Task 4.2: Setup Copilot Memory facts**
@@ -174,7 +174,7 @@ Define how failures are captured, escalated, and how codebase rules are cached.
 ### Risks & Mitigations
 * **Risk: Infinite Loop Retries.** The agent gets stuck repeatedly attempting to fix a failing test, consuming resources and token limits.
   * *Mitigation:* The Safe Iteration Policy halts execution after 2 consecutive test failures and triggers a human escalation comment.
-* **Risk: Claude Code Integration.** CLI-based agents like Claude Code operate outside of GitHub's Copilot cloud agent boundaries and will bypass pre-tool use.md configs, local workspace hooks, or memory constraints.
+* **Risk: Claude Code Integration.** CLI-based agents like Claude Code operate outside of GitHub's Copilot cloud agent boundaries and will bypass custom agent configurations (.agent.md), local workspace hooks, or memory constraints.
   * *Mitigation:* Document this as a known post-exam limitation. Emphasize that all external developer CLI runs must still go through the branch Ruleset validation gates (required reviews & CI status checks) which remain in place.
 * **Risk: Prompt Injection through issues/comments.** Malicious third-party comments attempt to hijack the agent's workflow.
   * *Mitigation:* 

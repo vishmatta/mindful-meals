@@ -1,0 +1,68 @@
+name: PR Evaluation Gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Restrict default GITHUB_TOKEN permissions to read-only for security (Least Privilege)
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    name: Evaluate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for git diff checking
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Build Project
+        id: build
+        run: npm run build
+        continue-on-error: true
+
+      - name: Run Tests
+        id: test
+        run: CI=true npm test -- --passWithNoTests
+        continue-on-error: true
+
+      - name: Run PR Evaluator
+        id: evaluator
+        env:
+          BUILD_STATUS: ${{ steps.build.outcome }}
+          TEST_STATUS: ${{ steps.test.outcome }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BRANCH_NAME: ${{ github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node .github/scripts/pr-evaluator.cjs
+
+      - name: Save PR Number
+        if: always()
+        run: echo "${{ github.event.pull_request.number }}" > pr-number.txt
+
+      - name: Upload Report Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-evaluation-report
+          path: |
+            evaluation-report.json
+            evaluation-report.md
+            pr-number.txt

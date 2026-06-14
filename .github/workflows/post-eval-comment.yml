@@ -1,0 +1,87 @@
+name: Post PR Evaluation Comment
+
+on:
+  workflow_run:
+    workflows: ["PR Evaluation Gate"]
+    types:
+      - completed
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read # Required to download artifacts from another workflow run
+
+jobs:
+  post-comment:
+    name: Post Comment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Report Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-evaluation-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post or Update PR Comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const prNumberPath = path.join(process.cwd(), 'pr-number.txt');
+            const reportPath = path.join(process.cwd(), 'evaluation-report.md');
+
+            if (!fs.existsSync(prNumberPath)) {
+              console.log('No pr-number.txt found. Skipping comment posting.');
+              return;
+            }
+
+            if (!fs.existsSync(reportPath)) {
+              console.log('No evaluation-report.md found. Skipping comment posting.');
+              return;
+            }
+
+            const prNumber = fs.readFileSync(prNumberPath, 'utf8').trim();
+            const reportContent = fs.readFileSync(reportPath, 'utf8');
+
+            if (!prNumber || isNaN(prNumber)) {
+              console.log(`Invalid PR number parsed: "${prNumber}". Skipping comment posting.`);
+              return;
+            }
+
+            console.log(`Processing PR comment for PR #${prNumber}...`);
+
+            // List comments on the pull request (PRs are issues in the GitHub API)
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: parseInt(prNumber, 10)
+            });
+
+            // Find existing evaluation report comment
+            const botComment = comments.find(comment => comment.body.includes('<!-- MM_PR_EVALUATION_REPORT -->'));
+
+            if (botComment) {
+              console.log(`Found existing comment (${botComment.id}). Updating...`);
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: reportContent
+              });
+              console.log('PR comment updated successfully.');
+            } else {
+              console.log('No existing comment found. Creating a new one...');
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(prNumber, 10),
+                body: reportContent
+              });
+              console.log('PR comment created successfully.');
+            }

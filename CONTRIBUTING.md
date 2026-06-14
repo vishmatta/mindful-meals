@@ -1,269 +1,164 @@
-# Contributing Guide
+# Contributing to Mindful Meals
 
-This document outlines how to contribute to this repository — whether you're a developer or an AI agent. Follow these conventions to keep the codebase clean and history readable.
-
-For detailed engineering standards and coding rules, please review the [Documentation Index (docs/)](docs/README.md) before submitting changes.
+Thank you for your interest in contributing to **Mindful Meals**! This document outlines the contribution process, including branch naming conventions, pull request structures, and code review expectations.
 
 ---
 
-## Table of Contents
+## 🔄 CODEOWNERS & Review Routing
 
-- [Repository Structure](#repository-structure)
-- [Local Development Setup](#local-development-setup)
-- [Branch Strategy](#branch-strategy)
-- [Creating a Branch](#creating-a-branch)
-- [Making Changes](#making-changes)
-- [Opening a Pull Request](#opening-a-pull-request)
-- [PR Review Process](#pr-review-process)
-- [Merging](#merging)
-- [Guidelines for AI Agents](#guidelines-for-ai-agents)
+This repository uses a **CODEOWNERS** file (`.github/CODEOWNERS`) to enforce path-based code review routing. When you create a pull request that modifies files in specific directories, GitHub automatically requests reviews from the designated owners.
+
+### Current Ownership Map
+
+| Path | Owner |
+|------|-------|
+| `src/` | @vishmatta |
+| `server/` | @vishmatta |
+| `.github/`, `Dockerfile`, `cloudbuild.yaml` | @vishmatta |
+| `docs/`, `*.md` files | @vishmatta |
+| `public/`, `test/` | @vishmatta |
+| `package.json`, build config | @vishmatta |
+
+### Updating CODEOWNERS
+
+To modify ownership rules (e.g., when adding team members):
+
+1. Edit `.github/CODEOWNERS` following the [GitHub CODEOWNERS syntax](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners).
+2. Use GitHub usernames (`@username`) or team handles (`@org/team`).
+3. Lines are processed top-to-bottom; more specific paths should appear later.
+4. Example:
+   ```
+   # Frontend team
+   /src/** @mindful-meals/frontend
+   
+   # Backend team
+   /server/** @mindful-meals/backend
+   ```
 
 ---
 
-## Repository Structure
+## 🌿 Branch Naming Conventions
 
-This repository is split into two main components:
+When creating a branch, use one of these prefixes followed by a short, descriptive slug:
 
-1. **Frontend (Root):** A React application built with TypeScript, managed via `react-scripts`.
-2. **Backend (`server/`):** An Express server handling API endpoints and WebSocket communication.
-
----
-
-## Local Development Setup
-
-### Frontend Setup
-
-The frontend runs from the root of the repository.
-
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Configure environment variables by copying `.env.example` to `.env` (or `.env.local`):
-   ```bash
-   cp .env.example .env
-   ```
-   Add your `GEMINI_API_KEY` to the `.env` file.
-3. Start the development server:
-   ```bash
-   npm start
-   ```
-4. Run tests:
-   ```bash
-   npm test
-   ```
-
-### Backend Setup
-
-The backend runs from the `server/` directory.
-
-1. Navigate to the server folder and install dependencies:
-   ```bash
-   cd server
-   npm install
-   ```
-2. Configure environment variables in `server/.env`. Make sure to set a custom port (e.g. `PORT=3001`) to avoid conflict with Vite:
-   ```env
-   GEMINI_API_KEY=your_gemini_api_key_here
-   PORT=3001
-   ```
-3. Start the backend in development mode (runs with `nodemon` for auto-reloading):
-   ```bash
-   npm run dev
-   ```
-   *Note: The frontend dev server (Vite on port 3000) is preconfigured to proxy `/api` requests to the backend on `http://localhost:3001`.*
+- **Features**: `feature/<short-description>` (e.g., `feature/add-energy-levels`)
+- **Fixes**: `fix/<short-description>` (e.g., `fix/pantry-sync-bug`)
+- **Agent Tasks**: `agent/<task-id-or-description>` (e.g., `agent/abc-123` or `agent/setup-codeowners`)
+- **Documentation**: `docs/<short-description>` (e.g., `docs/update-api-guide`)
+- **Refactoring**: `refactor/<short-description>` (e.g., `refactor/extract-state-logic`)
 
 ---
 
-## Branch Strategy
+## 📝 Commit Message Conventions
 
-This repo uses a **trunk-based branching model** with `main` as the protected default branch.
-
-| Branch Type | Naming Pattern | Purpose |
-|---|---|---|
-| Feature | `feature/<short-description>` | New features or enhancements |
-| Bug Fix | `fix/<short-description>` | Bug fixes |
-| Chore | `chore/<short-description>` | Dependency updates, config changes, refactors |
-| Hotfix | `hotfix/<short-description>` | Urgent production fixes |
-| Agent | `agent/<task-id-or-description>` | Changes made by an AI agent |
-
-**Examples:**
+All commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
 ```
-feature/add-user-auth
-fix/null-pointer-on-login
-chore/upgrade-dependencies
-agent/refactor-payment-module
+[agent] <type>[optional scope]: <description>
 ```
 
----
+### Commit Types
 
-## Creating a Branch
+- `feat`: A new feature
+- `fix`: A bug fix
+- `docs`: Documentation only changes
+- `style`: Changes that don't affect code meaning (formatting, semicolons, etc.)
+- `refactor`: Code changes that neither fix bugs nor add features
+- `perf`: Changes that improve performance
+- `test`: Adding or updating tests
+- `chore`: Changes to build tools, dependencies, or CI/CD
 
-Always branch off `main` unless instructed otherwise.
+### Examples
 
 ```bash
-# Pull the latest main
-git checkout main
-git pull origin main
+# Feature
+git commit -m "[agent] feat(recipes): add energy-level based filtering"
 
-# Create and switch to your new branch
-git checkout -b feature/your-feature-name
+# Bug fix
+git commit -m "[agent] fix(pantry): resolve sync issue with localStorage"
+
+# Documentation
+git commit -m "[agent] docs: add CODEOWNERS explanation to CONTRIBUTING.md"
+
+# Chore
+git commit -m "[agent] chore(deps): update express to v4.18.0"
 ```
 
-**Rules:**
-- Never commit directly to `main`.
-- Keep branch names lowercase with hyphens (no spaces or underscores).
-- Keep branches short-lived — open a PR as soon as the work is ready for review.
+### Agent vs. Human Contributions
+
+- **Agent commits** must start with `[agent]` tag.
+- **Human commits** follow the same format but omit the `[agent]` prefix.
 
 ---
 
-## Making Changes
+## 🔀 Pull Request Process
 
-1. **Make focused commits.** Each commit should represent one logical change.
-2. **Write clear commit messages** following the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+### 1. Create Your Branch
 
-   ```
-   <type>[optional scope]: <description>
+```bash
+git checkout -b feature/my-feature
+```
 
-   [optional body]
+### 2. Make Your Changes
 
-   [optional footer(s)]
-   ```
+- Follow the code style guidelines in [CLAUDE.md](./CLAUDE.md).
+- Refer to the [Documentation Index](./docs/README.md) for architecture and standards.
+- Keep commits atomic and meaningful.
 
-   Common types:
-   - `feat`: A new feature
-   - `fix`: A bug fix
-   - `docs`: Documentation only changes
-   - `refactor`: A code change that neither fixes a bug nor adds a feature
-   - `test`: Adding missing tests or correcting existing tests
-   - `chore`: Changes to the build process or auxiliary tools and libraries such as documentation generation
+### 3. Push and Open a PR
 
-   **Examples:**
-   ```
-   feat(auth): add email validation on sign-up form
-   fix(queue): resolve race condition in job queue
-   docs: update README with setup instructions
-   ```
+```bash
+git push origin feature/my-feature
+```
 
-3. **Keep the branch up to date.** Rebase onto `main` regularly to avoid large merge conflicts:
+Then open a pull request on GitHub with:
 
-   ```bash
-   git fetch origin
-   git rebase origin/main
-   ```
+- **Title**: Follow Conventional Commits format (e.g., `feat: add energy-level filtering`)
+- **Description**: Clearly explain what the PR does, why it's needed, and any testing you've done.
+- **Link to Issue**: Reference any related issues using `Closes #123` or `Relates to #456`.
 
-4. **Do not force-push** shared branches. Force-pushing is only acceptable on your own unreviewed branch.
+### 4. Review & Merge
+
+- GitHub will automatically request reviews from **CODEOWNERS** based on files modified.
+- Address feedback, update your branch, and re-request review.
+- Once approved, a maintainer will merge using "Squash and merge" (to keep history clean).
 
 ---
 
-## Opening a Pull Request
+## 🧪 Testing Before Submission
 
-1. Push your branch to the remote:
+### Frontend
 
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-2. Open a PR on GitHub against `main`.
-
-3. Fill out the PR description with:
-   - **What** was changed and **why**
-   - Steps to test or verify the change
-   - Any relevant screenshots, logs, or context
-   - Reference any related issues: `Closes #123`
-
-4. Assign at least one reviewer.
-
-5. Ensure all CI checks pass before requesting review.
-
-**PR Title Format:**
-
-```
-<type>: <short description of change>
+```bash
+npm test
 ```
 
-Example: `feat: add rate limiting to API endpoints`
+### Backend
+
+```bash
+cd server && npm test
+```
+
+### Manual Testing
+
+- Run the dev servers locally (see [README.md](./README.md)).
+- Test your changes across different energy levels and scenarios.
+- Verify no console errors or warnings are introduced.
 
 ---
 
-## PR Review Process
+## 📚 Code Standards & Guidelines
 
-- Reviewers should respond within **1 business day**.
-- Address all review comments before merging.
-- Use **"Request Changes"** for required fixes, **"Comment"** for suggestions.
-- Once approved with all checks green, the author merges (unless the team uses auto-merge).
+For detailed code style, TypeScript practices, and architecture guidelines, see:
 
----
-
-## Merging
-
-- Use **Squash and Merge** for feature and fix branches to keep `main` history clean.
-- Use **Merge Commit** only for long-running integration branches where individual commits matter.
-- Delete the branch after merging.
+- **[CLAUDE.md](./CLAUDE.md):** Quick command reference and code cheat sheet.
+- **[docs/standards/](./docs/standards/):** Comprehensive frontend, backend, and AI integration standards.
+- **[AGENTS.md](./AGENTS.md):** Special context and warnings for AI agents.
 
 ---
 
-## Guidelines for AI Agents
+## ❓ Questions?
 
-If you are an AI agent making changes to this repository, follow these additional rules:
+If you have questions about the contribution process, feel free to open a discussion or reach out to @vishmatta.
 
-### Branch Naming
-
-Always use the `agent/` prefix:
-
-```
-agent/<task-id-or-short-description>
-```
-
-Example: `agent/update-api-error-handling`
-
-### Commit Messages
-
-Start every commit message with `[agent]` so changes are clearly identifiable:
-
-```
-[agent] fix: resolve null reference in user service
-[agent] feat: add retry logic to outbound requests
-```
-
-### Pull Requests
-
-- Set the PR title to start with `[Agent]`.
-- In the PR description, clearly state:
-  - What task or prompt triggered this change
-  - What files were modified and why
-  - Any assumptions made
-  - Any areas of uncertainty that a human should review
-
-**Example PR description:**
-
-```
-## Summary
-[Agent] Refactored the payment module to separate validation logic.
-
-## Changes
-- Extracted `validateCard()` into its own utility function
-- Added unit tests for edge cases
-- Updated imports across affected files
-
-## Triggered by
-Task: "Separate payment validation from the core processing flow"
-
-## Notes for Reviewer
-- The existing tests still pass, but manual QA on the checkout flow is recommended.
-- I did not modify the database schema — that may need a follow-up.
-```
-
-### Do Not
-
-- Do not merge your own PR. Always leave merging to a human reviewer unless auto-merge is explicitly configured and approved.
-- Do not push directly to `main` or `develop`.
-- Do not modify CI/CD configuration files, secrets, or deployment scripts without explicit instruction.
-- Do not delete branches other than the one you created.
-
----
-
-## Questions?
-
-Open a GitHub Discussion or reach out to the maintainers directly.
+Thanks for contributing to Mindful Meals! 🍲✨

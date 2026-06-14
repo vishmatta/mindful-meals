@@ -13,8 +13,7 @@ This plan is compliant with the official GitHub Copilot implementation planner g
 4. [Considerations](#4-considerations)
 5. [Not Included](#5-not-included)
 6. [Detailed Scope of Changes: Pull Request Template](#6-detailed-scope-of-changes-pull-request-template)
-7. [Open Questions](#7-open-questions)
-8. [Grounded Sources Reference](#8-grounded-sources-reference)
+7. [Grounded Sources Reference](#7-grounded-sources-reference)
 
 ---
 
@@ -154,7 +153,7 @@ Define how failures are captured, escalated, and how codebase rules are cached.
 * **Task 4.2: Setup Copilot Memory facts**
   * *Description:* Establish repository-level facts for the project's actual stack: Tailwind CSS loaded via CDN (no build pipeline), Gemini API situated server-side only (secrets must never leak to client), and PostgreSQL database migration in progress (replacing client-side `localStorage`).
     * *Maintenance Owner:* `@vishmatta` (repository maintainer).
-    * *Staleness behavior:* If facts expire unnoticed after 28 days, Copilot falls back to standard LLM inference, which increases token consumption and risks generating invalid code suggestions (such as suggesting npm-based Tailwind compile configurations).
+    * *Staleness behavior & sole control:* GitHub Copilot does not surface an expiry notification when facts fail or expire. The 28-day proactive refresh cycle is the **sole control** and must be treated as a hard calendar commitment to prevent Copilot from falling back to standard LLM inference (which increases token consumption and risks generating invalid code suggestions).
   * *Complexity:* Small
   * *Dependencies:* None
 
@@ -275,12 +274,7 @@ This upgraded template ensures both human developers and agents have a unified e
 
 ---
 
-## 7. Open Questions
-* Does GitHub Copilot surface a warning or alert notification to developers or repository owners when a repository-level memory fact has expired or failed validation?
-
----
-
-## 8. Grounded Sources Reference
+## 7. Grounded Sources Reference
 
 The recommendations in this plan are grounded in the following sources:
 * **SDLC Responsibility & Autonomy:** Grounded in [MS Learn: Designing Agent Architecture (Unit 6)](https://learn.microsoft.com/en-us/training/modules/design-agent-architecture-integration/6-reliable-workflows) and [GitHub Docs: Risks & Mitigations](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/risks-and-mitigations).

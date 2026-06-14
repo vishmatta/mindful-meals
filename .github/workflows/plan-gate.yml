@@ -27,8 +27,8 @@ jobs:
           IS_AGENT=false
 
           # 1. Check branch prefix
-          if [[ "$BRANCH_NAME" =~ ^agent/ ]]; then
-            echo "Detected AI Agent based on branch prefix 'agent/'."
+          if [[ "$BRANCH_NAME" =~ ^agent/ ]] || [[ "$BRANCH_NAME" =~ ^copilot/ ]]; then
+            echo "Detected AI Agent based on branch prefix '$BRANCH_NAME'."
             IS_AGENT=true
           fi
 
@@ -48,8 +48,8 @@ jobs:
           if [ "$IS_AGENT" = "true" ]; then
             echo "Validating Plan Presence..."
             
-            # Check if body is empty
-            if [ -z "$PR_BODY" ]; then
+            # Check if body is empty or null (Finding 2)
+            if [ -z "$PR_BODY" ] || [ "$PR_BODY" = "null" ]; then
               echo "::error::PR body is empty! AI Agent PRs must include the '## 📋 Agentic Plan & Rationale' section."
               exit 1
             fi
@@ -71,9 +71,9 @@ jobs:
               exit 1
             fi
             
-            # Check if they replaced the default placeholders.
-            if [[ "$PR_BODY" =~ "Stated Goal: (Describe the issue, user prompt, or bug being resolved)" ]] || \
-               [[ "$PR_BODY" =~ "Scope of Changes: (List directories/files that will be affected by this run)" ]]; then
+            # Check if they replaced the default placeholders (Finding 1)
+            if [[ "$PR_BODY" == *"**Stated Goal:** (Describe the issue"* ]] || \
+               [[ "$PR_BODY" == *"**Scope of Changes:** (List"* ]]; then
               echo "::error::Plan section contains default placeholders! Please fill in your actual goal and scope of changes."
               exit 1
             fi
@@ -84,7 +84,7 @@ jobs:
             echo "ℹ️ Plan Gate Bypassed"
             echo "=========================================================================================="
             echo "This PR appears to be authored by a Human Developer."
-            echo "Plan enforcement is only active for AI Agents (branches starting with 'agent/' or commits/titles with '[agent]')."
-            echo "If this was an error, please ensure your branch name does not start with 'agent/'."
+            echo "Plan enforcement is only active for AI Agents (branches starting with 'agent/' or 'copilot/', or PR titles starting with '[agent]')."
+            echo "If this was an error, please ensure your branch name does not start with 'agent/' or 'copilot/'."
             echo "=========================================================================================="
           fi

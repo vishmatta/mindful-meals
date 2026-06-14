@@ -99,7 +99,7 @@ To ensure high-quality, structured changes, this repository enforces a **Plan-Fi
 
 When you create a Pull Request, the CI system runs a **Plan Gate** check. The workflow determines the contributor type as follows:
 
-*   **AI Agents**: Identified if the branch name starts with `agent/`, if any commit messages are prefixed with `[agent]`, or if the PR Metadata field is set to `- **Author Type**: AI Agent` (or includes "AI Agent").
+*   **AI Agents**: Identified if the branch name starts with `agent/` or `copilot/`, if the PR title is prefixed with `[agent]`, or if the PR Metadata field is set to `- **Author Type**: AI Agent` (or includes "AI Agent").
     *   *Requirement*: Must fully complete the **Agentic Plan & Rationale** and **Execution Evidence** sections of the PR template.
     *   *Enforcement*: The CI **Plan Gate** workflow parses the PR body and *will block the merge* if the structured plan header (`## 📋 Agentic Plan & Rationale`) is missing or incomplete.
 *   **Human Developers**:

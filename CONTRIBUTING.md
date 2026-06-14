@@ -93,10 +93,27 @@ git commit -m "[agent] chore(deps): update express to v4.18.0"
 
 ## 🔀 Pull Request Process
 
+To ensure high-quality, structured changes, this repository enforces a **Plan-First** policy for AI agents and highly encourages structured descriptions for humans.
+
+### 📋 Plan-First & Author Differentiation
+
+When you create a Pull Request, the CI system runs a **Plan Gate** check. The workflow determines the contributor type as follows:
+
+*   **AI Agents**: Identified if the branch name starts with `agent/` or `copilot/`, if the PR title is prefixed with `[agent]`, or if the PR Metadata field is set to `- **Author Type**: AI Agent` (or includes "AI Agent").
+    *   *Requirement*: Must fully complete the **Agentic Plan & Rationale** and **Execution Evidence** sections of the PR template.
+    *   *Enforcement*: The CI **Plan Gate** workflow parses the PR body and *will block the merge* if the structured plan header (`## 📋 Agentic Plan & Rationale`) is missing or incomplete.
+*   **Human Developers**:
+    *   *Requirement*: Must complete the **Description** section. The **Agentic Plan & Rationale** section is optional (and can be deleted or left blank).
+    *   *Enforcement*: The CI **Plan Gate** workflow will bypass validation for human-authored PRs. If a human PR is accidentally flagged, a friendly warning will explain how to resolve it.
+
+---
+
 ### 1. Create Your Branch
 
 ```bash
-git checkout -b feature/my-feature
+git checkout -b feature/my-feature # Human developer branch
+# OR
+git checkout -b agent/my-task      # AI agent branch
 ```
 
 ### 2. Make Your Changes
@@ -111,15 +128,17 @@ git checkout -b feature/my-feature
 git push origin feature/my-feature
 ```
 
-Then open a pull request on GitHub with:
+Then open a pull request on GitHub. Fill out the PR template completely:
+- **For Humans**: Set `Author Type` to `Human Developer`. Fill out the `Description` and `Pre-Merge Checklist`.
+- **For AI Agents**: Set `Author Type` to `AI Agent`. Fill out `Agentic Plan & Rationale`, `Execution Evidence`, and the checklists.
 
-- **Title**: Follow Conventional Commits format (e.g., `feat: add energy-level filtering`)
-- **Description**: Clearly explain what the PR does, why it's needed, and any testing you've done.
-- **Link to Issue**: Reference any related issues using `Closes #123` or `Relates to #456`.
+- **Title**: Follow Conventional Commits format (e.g., `feat: add energy-level filtering` or `[agent] feat: add energy-level filtering`).
+- **Link to Issue**: Reference any related issues using `Closes #123`.
 
 ### 4. Review & Merge
 
 - GitHub will automatically request reviews from **CODEOWNERS** based on files modified.
+- For AI agent PRs, the Code Owners will review both the *Plan & Rationale* and the code changes.
 - Address feedback, update your branch, and re-request review.
 - Once approved, a maintainer will merge using "Squash and merge" (to keep history clean).
 

@@ -115,21 +115,21 @@ Establish planning frameworks and programmatically block merges that bypass plan
   * *Description:* Update `.github/pull_request_template.md` to merge existing PR details with structured Agentic Plan, Evidence, and Reviewer checklists.
   * *Complexity:* Small
   * *Dependencies:* None
-* **Task 2.2: Implement the Plan Gate Workflow**
+* **Task 2.2: Update CONTRIBUTING.md Guidelines**
+  * *Description:* Modify the Pull Request section of `CONTRIBUTING.md` to document the new Plan-First PR template requirements, explaining how the gating workflow distinguishes between human contributors and AI agents.
+  * *Complexity:* Small
+  * *Dependencies:* None
+* **Task 2.3: Implement the Plan Gate Workflow**
   * *Description:* Create `.github/workflows/plan-gate.yml` to parse PR descriptions and fail the build if the Plan section is absent. 
     * *Note on Gating:* The workflow gates strictly on format (verifying the presence of the header). Substantive review and plan validation remains the responsibility of the required CODEOWNERS approval.
     * *UX Optimization:* If the check fails, the workflow must output a friendly explanation stating that plans are only required for agents, and providing a direct link to `CONTRIBUTING.md`.
   * *Complexity:* Medium
-  * *Dependencies:* Task 2.1, Task 2.4
-* **Task 2.3: Configure Branch Rulesets**
+  * *Dependencies:* Task 2.1, Task 2.2
+* **Task 2.4: Configure Branch Rulesets**
   * *Description:* Configure rulesets on the `main` branch to require the Plan Gate check and CODEOWNERS approvals before merging.
     * *Branch Guardrail:* Agent actors (GitHub Copilot bot identity) are configured to push changes to copilot/** branches by convention. The branch ruleset enforces that all copilot/** branches require the Plan Gate check and CODEOWNERS review before merging to main.
   * *Complexity:* Medium
-  * *Dependencies:* Task 1.2, Task 2.2
-* **Task 2.4: Update CONTRIBUTING.md Guidelines**
-  * *Description:* Modify the Pull Request section of `CONTRIBUTING.md` to document the new Plan-First PR template requirements, explaining how the gating workflow distinguishes between human contributors and AI agents.
-  * *Complexity:* Small
-  * *Dependencies:* None
+  * *Dependencies:* Task 1.2, Task 2.3
 
 ### Phase 3: Custom Agents & Tool Gating
 Sandbox AI capabilities by defining custom profiles and execution boundaries.
@@ -254,7 +254,7 @@ We will merge the existing PR Metadata and Developer checklists with the new age
 
 ### Pre-Merge Checklist
 - [ ] All files are committed to the feature branch.
-- [ ] Commit follows Conventional Commits format (prefixed with `[agent]` if authored by an AI agent).
+- [ ] Commit follows Conventional Commits format (prefixed with `[agent]`, if authored by an AI agent).
 - [ ] Commit message includes `Closes #XYZ` to auto-link and close the issue.
 - [ ] No merge conflicts exist with `main`.
 - [ ] Code builds successfully locally (`npm run build`).

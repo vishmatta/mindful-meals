@@ -30,4 +30,6 @@ dist-ssr
 scratch/
 
 # local plans folder
-plans/
+plans/database-integration-plan.md
+plans/mm-critical-issues-remediation-plan.md
+plans/README.md

@@ -13,7 +13,8 @@ This plan is compliant with the official GitHub Copilot implementation planner g
 4. [Considerations](#4-considerations)
 5. [Not Included](#5-not-included)
 6. [Detailed Scope of Changes: Pull Request Template](#6-detailed-scope-of-changes-pull-request-template)
-7. [Grounded Sources Reference](#7-grounded-sources-reference)
+7. [Open Questions](#7-open-questions)
+8. [Grounded Sources Reference](#8-grounded-sources-reference)
 
 ---
 
@@ -42,6 +43,15 @@ By introducing this governance system, we transform the GitHub repository into b
 ---
 
 ## 2. Technical Approach
+
+### The Governance Model (Plan → Act → Evaluate)
+Following the core lifecycle from [MS Learn: Foundations of Agentic AI (Unit 3)](https://learn.microsoft.com/en-us/training/modules/foundations-agentic-ai/3-explain-agent-lifecycle-plan-act-evaluate), this architecture establishes GitHub as the **system of record** (storing plans, PRs, and execution runs) and the **control plane** (enforcing rules, token limits, and reviews) ([MS Learn: Foundations of Agentic AI (Unit 4)](https://learn.microsoft.com/en-us/training/modules/foundations-agentic-ai/4-describe-github-system-record-control-plane)):
+* **Plan Phase:** Bounded scope and stated goals are defined in the PR template before changes are evaluated.
+* **Act Phase:** Bounded changes are pushed to an isolated `copilot/` branch by the agent.
+* **Evaluate Phase:** Enforced via three layers of feedback loop:
+  1. *Automated Validation (Micro-Evaluation):* GitHub Actions build checks and Plan Gate format checks.
+  2. *Governance Gating (Macro-Evaluation):* Required branch rulesets and CODEOWNERS approvals.
+  3. *Feedback Closed Loop:* The Safe Iteration Policy, which limits agent retries and defines a path for human escalation on failure.
 
 ### High-Level Architecture & Integrations
 We will use a layered security approach combining repository-level policies, CI/CD Actions workflows, custom agent definitions, and Copilot Memory:
@@ -105,7 +115,9 @@ Establish planning frameworks and programmatically block merges that bypass plan
   * *Complexity:* Small
   * *Dependencies:* None
 * **Task 2.2: Implement the Plan Gate Workflow**
-  * *Description:* Create `.github/workflows/plan-gate.yml` to parse PR descriptions and fail the build if the Plan section is absent.
+  * *Description:* Create `.github/workflows/plan-gate.yml` to parse PR descriptions and fail the build if the Plan section is absent. 
+    * *Note on Gating:* The workflow gates strictly on format (verifying the presence of the header). Substantive review and plan validation remains the responsibility of the required CODEOWNERS approval.
+    * *UX Optimization:* If the check fails, the workflow must output a friendly explanation stating that plans are only required for agents, with a link to `CONTRIBUTING.md`.
   * *Complexity:* Medium
   * *Dependencies:* Task 2.1
 * **Task 2.3: Configure Branch Rulesets**
@@ -133,7 +145,9 @@ Define how failures are captured, escalated, and how codebase rules are cached.
   * *Complexity:* Small
   * *Dependencies:* None
 * **Task 4.2: Setup Copilot Memory facts**
-  * *Description:* Establish repository-level facts for Prisma databases and Tailwind CDN patterns, and document a 28-day verification maintenance schedule.
+  * *Description:* Establish repository-level facts for the project's actual stack: Tailwind CSS loaded via CDN (no build pipeline), Gemini API situated server-side only (secrets must never leak to client), and PostgreSQL database migration in progress (replacing client-side `localStorage`).
+    * *Maintenance Owner:* `@vishmatta` (repository maintainer).
+    * *Staleness behavior:* If facts expire unnoticed after 28 days, Copilot falls back to standard LLM inference, which increases token consumption and risks generating invalid code suggestions (such as suggesting npm-based Tailwind compile configurations).
   * *Complexity:* Small
   * *Dependencies:* None
 
@@ -144,6 +158,7 @@ Define how failures are captured, escalated, and how codebase rules are cached.
 ### Assumptions
 * The repository administrator has the required enterprise/organization permissions to enforce branch rulesets, set default Actions permissions, and register custom agents.
 * Developers use compatible IDE clients (VS Code/Cursor) that natively support GitHub Copilot Agent configurations and MCP connections.
+* **Agent Identity:** Agent identity is self-declared in the PR template's Metadata section. Cryptographic agent identity verification is currently a known limitation in the GitHub ecosystem; therefore, final enforcement of plan compliance relies on human CODEOWNERS review rather than automated verification.
 
 ### Constraints
 * Custom agents and Copilot Memory are in public preview and are subject to platform API shifts.
@@ -152,6 +167,8 @@ Define how failures are captured, escalated, and how codebase rules are cached.
 ### Risks & Mitigations
 * **Risk: Infinite Loop Retries.** The agent gets stuck repeatedly attempting to fix a failing test, consuming resources and token limits.
   * *Mitigation:* The Safe Iteration Policy halts execution after 2 consecutive test failures and triggers a human escalation comment.
+* **Risk: Claude Code Integration.** CLI-based agents like Claude Code operate outside of GitHub's Copilot cloud agent boundaries and will bypass pre-tool use.md configs, local workspace hooks, or memory constraints.
+  * *Mitigation:* Document this as a known post-exam limitation. Emphasize that all external developer CLI runs must still go through the branch Ruleset validation gates (required reviews & CI status checks) which remain in place.
 * **Risk: Prompt Injection through issues/comments.** Malicious third-party comments attempt to hijack the agent's workflow.
   * *Mitigation:* 
     * Only users with write access can trigger the agent.
@@ -163,6 +180,7 @@ Define how failures are captured, escalated, and how codebase rules are cached.
 ## 5. Not Included
 * **Deployment Automation:** We will not configure the agent to auto-deploy to production. Deployments remain gated behind manual human environment gates.
 * **Private MCP Registries:** We will leverage allowlists for remote/local endpoints instead of hosting a custom registry infrastructure.
+* **Database Schema Rollbacks:** Git revert covers application code changes only; database schema migration rollbacks (which require raw SQL or database migration tool operations) are handled separately and are out of scope for this branch-level code governance layer.
 
 ---
 
@@ -250,7 +268,12 @@ This upgraded template ensures both human developers and agents have a unified e
 
 ---
 
-## 7. Grounded Sources Reference
+## 7. Open Questions
+* Does GitHub Copilot surface a warning or alert notification to developers or repository owners when a repository-level memory fact has expired or failed validation?
+
+---
+
+## 8. Grounded Sources Reference
 
 The recommendations in this plan are grounded in the following sources:
 * **SDLC Responsibility & Autonomy:** Grounded in [MS Learn: Designing Agent Architecture (Unit 6)](https://learn.microsoft.com/en-us/training/modules/design-agent-architecture-integration/6-reliable-workflows) and [GitHub Docs: Risks & Mitigations](https://docs.github.com/en/copilot/concepts/agents/cloud-agent/risks-and-mitigations).

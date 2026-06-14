@@ -1,0 +1,31 @@
+# CODEOWNERS - Path-based review routing for Mindful Meals
+# See CONTRIBUTING.md for details on updating this file.
+
+# Default owner for all files
+*       @vishmatta
+
+# Frontend source (React + TypeScript)
+/src/** @vishmatta
+/index.html @vishmatta
+/index.tsx @vishmatta
+
+# Backend server (Express + Node.js)
+/server/** @vishmatta
+
+# Configuration, CI/CD, and Docker
+/.github/** @vishmatta
+/Dockerfile @vishmatta
+/cloudbuild.yaml @vishmatta
+
+# Documentation and developer guides
+/docs/** @vishmatta
+/CLAUDE.md @vishmatta
+/CONTRIBUTING.md @vishmatta
+/AGENTS.md @vishmatta
+/*.md @vishmatta
+
+# Build and package configuration
+/package.json @vishmatta
+/package-lock.json @vishmatta
+/tsconfig.json @vishmatta
+/vite.config.ts @vishmatta

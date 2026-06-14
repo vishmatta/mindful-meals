@@ -13,7 +13,7 @@ This repository uses a **CODEOWNERS** file (`.github/CODEOWNERS`) to enforce pat
 | Path | Owner |
 |------|-------|
 | `src/`, `index.html`, `index.tsx` | @vishmatta |
-| `server/` (including backend public assets) | @vishmatta |
+| `server/` | @vishmatta |
 | `.github/`, `Dockerfile`, `cloudbuild.yaml` | @vishmatta |
 | `docs/`, `*.md` files | @vishmatta |
 | `package.json`, build config | @vishmatta |

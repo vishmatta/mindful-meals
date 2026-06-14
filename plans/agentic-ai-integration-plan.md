@@ -28,9 +28,9 @@ Currently, AI coding agents (such as Antigravity and others) interact with the r
 By introducing this governance system, we transform the GitHub repository into both a **system of record** and a **control plane** to supervise agent activity.
 
 ### Success Criteria (What does "done" look like?)
-- [ ] Every agent pull request is blocked from merging until a structured plan is completed and validated.
-- [ ] GITHUB_TOKEN permissions are configured as read-only by default across all workflows.
-- [ ] High-risk paths (.github, package.json, tsconfig.json, server configs) require CODEOWNERS reviews.
+- [x] Every agent pull request is blocked from merging until a structured plan is completed and validated.
+- [x] GITHUB_TOKEN permissions are configured as read-only by default across all workflows.
+- [x] High-risk paths (.github, package.json, tsconfig.json, server configs) require CODEOWNERS reviews.
 - [ ] Custom agent profiles restrict agent write-access scope using `applyTo` path globs.
 - [ ] A documented Safe Iteration Policy gates infinite loop retries and provides human escalation.
 - [ ] Repository-level Copilot Memory facts are defined for the three stack-specific entries (Tailwind CDN, Gemini server-side, PostgreSQL migration) and a 28-day refresh cycle is confirmed by `@vishmatta`.
@@ -95,36 +95,36 @@ We will use a layered security approach combining repository-level policies, CI/
 
 ## 3. Implementation Plan
 
-### Phase 1: Foundation (Security & Permissions)
+### Phase 1: Foundation (Security & Permissions) [COMPLETED]
 Set up core permissions, boundaries, and ownership structures to restrict agent privileges.
 
-* **Task 1.1: Restrict default workflow permissions**
+* [x] **Task 1.1: Restrict default workflow permissions**
   * *Description:* Update all workflow templates to include global read-only GITHUB_TOKEN configurations.
   * *Complexity:* Small
   * *Dependencies:* None
-* **Task 1.2: Define path-based review rules**
+* [x] **Task 1.2: Define path-based review rules**
   * *Description:* Modify `.github/CODEOWNERS` to ensure `@vishmatta` is required to approve all high-risk paths (`.github/workflows/**`, `Dockerfile`, `package.json`, `tsconfig.json`).
   * *Complexity:* Small
   * *Dependencies:* None
 
-### Phase 2: Core Governance (Planning & Gating)
+### Phase 2: Core Governance (Planning & Gating) [COMPLETED]
 Establish planning frameworks and programmatically block merges that bypass plan validation.
 
-* **Task 2.1: Upgrade the PR Template**
+* [x] **Task 2.1: Upgrade the PR Template**
   * *Description:* Update `.github/pull_request_template.md` to merge existing PR details with structured Agentic Plan, Evidence, and Reviewer checklists.
   * *Complexity:* Small
   * *Dependencies:* None
-* **Task 2.2: Update CONTRIBUTING.md Guidelines**
+* [x] **Task 2.2: Update CONTRIBUTING.md Guidelines**
   * *Description:* Modify the Pull Request section of `CONTRIBUTING.md` to document the new Plan-First PR template requirements, explaining how the gating workflow distinguishes between human contributors and AI agents.
   * *Complexity:* Small
   * *Dependencies:* None
-* **Task 2.3: Implement the Plan Gate Workflow**
+* [x] **Task 2.3: Implement the Plan Gate Workflow**
   * *Description:* Create `.github/workflows/plan-gate.yml` to parse PR descriptions and fail the build if the Plan section is absent. 
     * *Note on Gating:* The workflow gates strictly on format (verifying the presence of the header). Substantive review and plan validation remains the responsibility of the required CODEOWNERS approval.
     * *UX Optimization:* If the check fails, the workflow must output a friendly explanation stating that plans are only required for agents, and providing a direct link to `CONTRIBUTING.md`.
   * *Complexity:* Medium
   * *Dependencies:* Task 2.1, Task 2.2
-* **Task 2.4: Configure Branch Rulesets**
+* [x] **Task 2.4: Configure Branch Rulesets**
   * *Description:* Configure rulesets on the `main` branch to require the Plan Gate check and CODEOWNERS approvals before merging.
     * *Branch Guardrail:* Agent actors (GitHub Copilot bot identity) are configured to push changes to copilot/** branches by convention. The branch ruleset enforces that all copilot/** branches require the Plan Gate check and CODEOWNERS review before merging to main.
   * *Complexity:* Medium
@@ -133,11 +133,11 @@ Establish planning frameworks and programmatically block merges that bypass plan
 ### Phase 3: Custom Agents & Tool Gating
 Sandbox AI capabilities by defining custom profiles and execution boundaries.
 
-* **Task 3.1: Create Custom Agent Profiles**
+* [ ] **Task 3.1: Create Custom Agent Profiles**
   * *Description:* Add specialized `.agent.md` files (e.g., `recipe-assistant.agent.md`) under `.github/agents/` restricting write-access using the `applyTo` parameter.
   * *Complexity:* Medium
   * *Dependencies:* None
-* **Task 3.2: Configure Tool Gating and Hooks**
+* [ ] **Task 3.2: Configure Tool Gating and Hooks**
   * *Description:* Define pre-tool hooks to validate shell executions and restrict destructive or unauthorized actions.
     * *Concrete Examples:* The pre-tool hook script (`pre-tool-use`) will intercept and block commands containing forbidden shell structures (such as `rm -rf` targeting folders outside `/dist` or `/tmp`, or `git push --force` operations). It will also restrict file-writing actions from targeting workflow configurations (`.github/workflows/**`) or committed credentials.
   * *Complexity:* Medium
@@ -146,11 +146,11 @@ Sandbox AI capabilities by defining custom profiles and execution boundaries.
 ### Phase 4: Observability, Memory & Escalation
 Define how failures are captured, escalated, and how codebase rules are cached.
 
-* **Task 4.1: Integrate Safe Iteration Policy**
+* [ ] **Task 4.1: Integrate Safe Iteration Policy**
   * *Description:* Create or update `AGENTS.md` to document the retry limits (max 2) and specify a diagnostic escalation template.
   * *Complexity:* Small
   * *Dependencies:* None
-* **Task 4.2: Setup Copilot Memory facts**
+* [ ] **Task 4.2: Setup Copilot Memory facts**
   * *Description:* Establish repository-level facts for the project's actual stack: Tailwind CSS loaded via CDN (no build pipeline), Gemini API situated server-side only (secrets must never leak to client), and PostgreSQL database migration in progress (replacing client-side `localStorage`).
     * *Maintenance Owner:* `@vishmatta` (repository maintainer).
     * *Staleness behavior & sole control:* GitHub Copilot does not surface an expiry notification when facts fail or expire. The 28-day proactive refresh cycle is the **sole control** and must be treated as a hard calendar commitment to prevent Copilot from falling back to standard LLM inference (which increases token consumption and risks generating invalid code suggestions).

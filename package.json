@@ -24,7 +24,8 @@
     "start": "vite",
     "build": "vite build && mkdir -p server/dist && cp -r dist/* server/dist/",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "prepare": "node .github/scripts/install-hooks.cjs"
   },
   "eslintConfig": {
     "extends": [
